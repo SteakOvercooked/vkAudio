@@ -1,0 +1,43 @@
+@use "animations";
+
+.notification__vk_audio {
+
+    position: fixed;
+    background-color: white;
+    overflow-y: hidden;
+    left: 3%;
+    z-index: 10000;
+    width: 120px;
+    height: 50px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px 0px rgba(0, 0, 0, 0.5);
+
+    svg {
+        display: block;
+        margin: 7px auto 250px auto;
+        width: 36px;
+        height: 36px;
+    }
+
+    svg.vk_audio__error {
+        animation-name: showError;
+        animation-duration: 0.8s;
+        animation-fill-mode: forwards;
+    }
+}
+
+.notification__vk_audio.hidden {
+    transform: translateX(-1000px);
+}
+
+.notification__vk_audio.removing {
+    animation-name: hidePopup;
+    animation-fill-mode: forwards;
+    animation-duration: 0.8s;
+}
+
+.notification__vk_audio.showing {
+    animation-name: showPopup;
+    animation-duration: 0.8s;
+    animation-fill-mode: forwards;
+}

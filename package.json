@@ -1,0 +1,24 @@
+{
+  "name": "vkaudio",
+  "version": "1.0.0",
+  "description": "extension for chrome to download audio",
+  "main": "./build/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watchTS": "webpack -c webpack.config.js -w",
+    "watchSCSS": "sass -w --no-source-map src/styles:build",
+    "watchAll": "npm-run-all --parallel watchTS watchSCSS"
+  },
+  "author": "Ivan Kapitanov",
+  "license": "ISC",
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "ts-loader": "^9.2.3",
+    "typescript": "^4.3.2",
+    "webpack": "^5.38.1",
+    "webpack-cli": "^4.7.2"
+  },
+  "dependencies": {
+    "@types/chrome": "0.0.145"
+  }
+}

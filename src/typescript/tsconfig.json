@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "module": "CommonJS",
+        "noImplicitAny": true,
+        "target": "ES5",
+        "lib": ["ES2016", "DOM"],
+        "moduleResolution": "node",
+        "removeComments": true,
+        "strictNullChecks": true,
+        "types": ["chrome"],
+    }
+}
