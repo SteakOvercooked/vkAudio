@@ -40,25 +40,16 @@ function extractReqParameter(rawData: string): string {
 
 // this function fetches the passed url, creates a blob, creates an object link and follows it so a file gets downloaded
 function downloadMP3(url: string) {
-  return new Promise<void>((resolve, reject) => {
-    fetch(url)
-      .then((result) => {
-        if (result.ok) {
-          result
-            .blob()
-            .then((blb) => {
-              const a = document.createElement('a');
-              a.href = URL.createObjectURL(blb);
-              a.setAttribute('download', TRACK_TITLE);
-              a.click();
-              resolve();
-            })
-            .catch((err) => reject('Unable to create an MP3 BLOB'));
-        } else {
-          reject('Bad response type');
-        }
-      })
-      .catch((err) => reject('MP3 URL is unaccessible'));
+  return new Promise<void>(async (resolve, reject) => {
+    const response = await fetch(url);
+    if (!response.ok) reject('Bad response type');
+
+    const blob = await response.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.setAttribute('download', TRACK_TITLE);
+    a.click();
+    resolve();
   });
 }
 
@@ -91,42 +82,30 @@ function getMP3Link(m3u8Link: string) {
 // Don't ask me why the response type is "text/html" for my extension and "application/json" for VK even though the requests are identical.
 // (setting "credentials" to "include" doesn't help)
 const decoder = new TextDecoder();
+
 function getMP3Unavailable(requestId: string): Promise<string> {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const data = `al=1&ids=${requestId}`;
-    const headers = new Headers();
-    headers.set('Content-Type', 'application/x-www-form-urlencoded');
-    fetch(unavailableAudio, {
+    const response = await fetch(unavailableAudio, {
       body: data,
-      headers: headers,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
       method: 'POST',
-    })
-      .then((response) => {
-        if (response.body) {
-          const reader = response.body.getReader();
-          reader
-            .read()
-            .then((blb) => {
-              // only the link is extracted
-              const text = decoder.decode(blb.value);
-              const start = text.indexOf('https:');
-              if (start !== -1) {
-                const end = text.indexOf('"', start + 1);
-                resolve(text.substring(start, end));
-              } else {
-                reject('Bad response data');
-              }
-            })
-            .catch((err) => {
-              reject('Unable to create an MP3Unavailabe BLOB');
-            });
-        } else {
-          reject("The response doesn't have a body");
-        }
-      })
-      .catch((err) => {
-        reject('The request link is unaccessible');
-      });
+    }).catch(() => reject('The request link is unaccessible'));
+    if (!response?.body) reject("The response doesn't have a body");
+
+    const reader = (<ReadableStream<Uint8Array>>response?.body).getReader();
+    const blob = await reader.read().catch(() => reject('Unable to create an MP3Unavailabe BLOB'));
+    const text = decoder.decode(blob?.value);
+    const start = text.indexOf('https:');
+
+    if (start !== -1) {
+      const end = text.indexOf('"', start + 1);
+      resolve(text.substring(start, end));
+    } else {
+      reject('Bad response data');
+    }
   });
 }
 
@@ -137,82 +116,103 @@ function createDownloadAction(): HTMLButtonElement {
   but.innerText = 'Скачать';
   but.addEventListener('click', async () => {
     // only 1 download action at a time
-    if (!NOTIFICATION) {
-      NOTIFICATION = addNotification();
-      const audioDataString = CURRENT_TRACK.getAttribute('data-audio');
-      if (audioDataString) {
-        const requestParam = extractReqParameter(audioDataString);
-        try {
-          const mp3aUnavailable = await getMP3Unavailable(requestParam);
+    if (NOTIFICATION) return;
 
-          const tryGetLink = new Promise<string>((resolve, reject) => {
-            let m3u8Link: string,
-              counter = 1;
+    NOTIFICATION = addNotification();
+    const audioDataString = CURRENT_TRACK.getAttribute('data-audio');
+    if (!audioDataString) {
+      notifyAboutError(NOTIFICATION, () => {
+        NOTIFICATION = null;
+      });
+      return;
+    }
+    const requestParam = extractReqParameter(audioDataString);
+    try {
+      const mp3aUnavailable = await getMP3Unavailable(requestParam);
 
-            // The reason for using interval is that sometimes VK's getAudioLink function returns the same thing that
-            // was passed to it (like when a track has just started playing and gets immediately downloaded... SMH).
-            // The interval tries to get the result 5 times and rejects the promise if the counter is exceeded.
-            let intervalID = setInterval(() => {
-              m3u8Link = getAudioLink(mp3aUnavailable);
+      const tryGetLink = new Promise<string>((resolve, reject) => {
+        let m3u8Link: string,
+          counter = 1;
 
-              // if we got an m3u8 link
-              if (m3u8Link.indexOf('.mp3?') === -1) {
-                clearInterval(intervalID);
-                resolve(m3u8Link);
-              } else {
-                counter += 1;
-                if (counter > 5) {
-                  clearInterval(intervalID);
-                  reject('Unable to get the link to MP3 file');
-                }
-              }
-            }, 150);
-          });
+        // The reason for using interval is that sometimes VK's getAudioLink function returns the same thing that
+        // was passed to it (like when a track has just started playing and gets immediately downloaded... SMH).
+        // The interval tries to get the result 5 times and rejects the promise if the counter is exceeded.
+        let intervalID = setInterval(() => {
+          m3u8Link = getAudioLink(mp3aUnavailable);
 
-          const m3u8Link = await tryGetLink;
-          const mp3Link = getMP3Link(m3u8Link);
-          await downloadMP3(mp3Link);
-          removeNotification(NOTIFICATION, () => {
-            NOTIFICATION = null;
-          });
-        } catch (err) {
-          notifyAboutError(NOTIFICATION, () => {
-            NOTIFICATION = null;
-          });
-        }
-      } else {
-        notifyAboutError(NOTIFICATION, () => {
-          NOTIFICATION = null;
-        });
-      }
+          // if we got an m3u8 link
+          if (m3u8Link.indexOf('.mp3?') === -1) {
+            clearInterval(intervalID);
+            resolve(m3u8Link);
+          } else {
+            counter += 1;
+            if (counter > 5) {
+              clearInterval(intervalID);
+              reject('Unable to get the link to MP3 file');
+            }
+          }
+        }, 150);
+      });
+
+      const m3u8Link = await tryGetLink;
+      const mp3Link = getMP3Link(m3u8Link);
+      await downloadMP3(mp3Link);
+      removeNotification(NOTIFICATION, () => {
+        NOTIFICATION = null;
+      });
+    } catch (err) {
+      notifyAboutError(NOTIFICATION, () => {
+        NOTIFICATION = null;
+      });
     }
   });
   return but;
 }
 
+function getMutation(mutations: Array<MutationRecord>): HTMLDivElement | null {
+  let mutationIndex = 0;
+  while (mutationIndex < mutations.length) {
+    let nodeIndex = 0;
+    while (nodeIndex < mutations[mutationIndex].addedNodes.length) {
+      const currentNode = mutations[mutationIndex].addedNodes[nodeIndex];
+      if (
+        currentNode.nodeName === 'DIV' &&
+        (<HTMLDivElement>currentNode).classList.contains('eltt') &&
+        (<HTMLDivElement>currentNode).classList.contains('_audio_row__tt')
+      )
+        return <HTMLDivElement>currentNode;
+      ++nodeIndex;
+    }
+    ++mutationIndex;
+  }
+  return null;
+}
+
 const OBSERVER = new MutationObserver((mutations, observer) => {
   // Each time the user hovers the button "more" the contextual menu appears.
   // When it appears a new "download" button must be inserted.
-  const actionList = <HTMLDivElement>mutations[0].addedNodes[0];
-  const moreActionList = <HTMLDivElement>actionList.querySelector('div._audio_row__more_actions.audio_row__more_actions');
+  const audioMoreActions = getMutation(mutations);
+  if (!audioMoreActions) return;
 
-  // checking if it wasn't an accidential hover and the user is still on the element
-  if (moreActionList) {
-    // since add_to_playlist is always there we can rely on that
-    const refNode = moreActionList.querySelector('button.audio_row__more_action.audio_row__more_action_add_to_playlist');
-    if (refNode) {
-      const but = createDownloadAction();
-      moreActionList.insertBefore(but, refNode);
+  // since add_to_playlist is always there we can rely on it
+  const refNode = audioMoreActions.querySelector('button.audio_row__more_action.audio_row__more_action_add_to_playlist');
+  if (!refNode) return;
 
-      // making sure that if the contextual menu appears above the audio element it is brought one button higher to avoid UI bug
-      let top = parseInt(actionList.style.top);
-      if (top < 0) actionList.style.top = `${top - 32}px`;
-    }
+  const downloadButton = createDownloadAction();
+  if (!refNode.parentNode) return;
+
+  const actionList = <HTMLDivElement>refNode.parentNode;
+  actionList.insertBefore(downloadButton, refNode);
+
+  // making sure that if the contextual menu appears above the audio element it is brought one button higher to avoid UI bug
+  if (audioMoreActions.classList.contains('eltt_top')) {
+    let top = parseInt(audioMoreActions.style.top);
+    audioMoreActions.style.top = `${top - 32}px`;
   }
   observer.disconnect();
 });
 
-// onRowOver is going to be extended so remember it
+// onRowOver and onRowLeave are going to be extended in order to preserve the original functionality
 const regularOnRowOver = AudioUtils.onRowOver;
 
 function extendedOnRowOver(thisArg: any, event: MouseEvent) {
@@ -230,18 +230,19 @@ function extendedOnRowOver(thisArg: any, event: MouseEvent) {
         CURRENT_TRACK = <HTMLDivElement>target.closest('div[data-audio]');
 
         // check what to watch with observer depending on where we are on the website
-        const wk_box = <HTMLDivElement>document.querySelector('div#wk_box');
-        let watchedNode = document.body;
-        if (wk_box) watchedNode = wk_box;
-        else {
-          const audio_layer = <HTMLDivElement>document.querySelector('div#audio_layer_tt');
-          const audio_page = document.querySelector('div#content > div._audio_page_layout.audio_page_layout');
+        // const wk_box = <HTMLDivElement>document.querySelector('div#wk_box');
+        // let watchedNode = document.body;
+        // if (wk_box) watchedNode = wk_box;
+        // else {
+        //   const audio_layer = <HTMLDivElement>document.querySelector('div#audio_layer_tt');
+        //   const audio_page = document.querySelector('div#content > div._audio_page_layout.audio_page_layout');
 
-          // check if the user is in the audious page or has audio layer opened up
-          if (audio_page || (audio_layer && audio_layer.style.display !== 'none')) watchedNode = <HTMLDivElement>target.parentNode;
-        }
-        OBSERVER.observe(watchedNode, {
+        // check if the user is in the audious page or has audio layer opened up
+        // if (audio_page || (audio_layer && audio_layer.style.display !== 'none')) watchedNode = <HTMLDivElement>target.parentNode;
+        // }
+        OBSERVER.observe(document.body, {
           childList: true,
+          subtree: true,
         });
       }
     }
