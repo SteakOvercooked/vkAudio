@@ -14,7 +14,7 @@ it is possible to trim a part of the link and replace "/index.m3u8" with ".mp3" 
 import { getAudioLink, addNotification, removeNotification, notifyAboutError } from './helpers'; // helpers is for vk's link transformation functions and for notifications
 
 // request URL to get unavailable mp3 link and construct m3u8 link out of it
-const unavailableAudio = 'https://vk.com/al_audio.php?act=reload_audio';
+const unavailableAudio = 'al_audio.php?act=reload_audio';
 
 // CURRENT_TRACK - the one that the user is hovering over.
 // TRACK_TITLE - performer + title without "."
@@ -31,11 +31,12 @@ declare var AudioUtils: AU;
 // this function takes [audio-data] attribute of a track element and returns an object with that data (and maybe some extra, who knows?)
 function extractReqParameter(rawData: string): string {
   const excessiveDetails = AudioUtils.asObject(JSON.parse(rawData));
-  TRACK_TITLE = `${(excessiveDetails.performer as string).replace(/\./g, '')} - ${(excessiveDetails.title as string).replace(
-    /\./g,
-    ''
-  )} (vk_audio)`;
-  return excessiveDetails.fullId + '_' + excessiveDetails.actionHash + '_' + excessiveDetails.urlHash;
+  TRACK_TITLE = `${(excessiveDetails.performer as string).replace(/\./g, '')} - ${(
+    excessiveDetails.title as string
+  ).replace(/\./g, '')} (vk_audio)`;
+  return (
+    excessiveDetails.fullId + '_' + excessiveDetails.actionHash + '_' + excessiveDetails.urlHash
+  );
 }
 
 // this function fetches the passed url, creates a blob, creates an object link and follows it so a file gets downloaded
@@ -79,33 +80,21 @@ function getMP3Link(m3u8Link: string) {
 }
 
 // This function requests the track's mp3Unavailable link.
-// Don't ask me why the response type is "text/html" for my extension and "application/json" for VK even though the requests are identical.
-// (setting "credentials" to "include" doesn't help)
-const decoder = new TextDecoder();
-
 function getMP3Unavailable(requestId: string): Promise<string> {
   return new Promise(async (resolve, reject) => {
-    const data = `al=1&ids=${requestId}`;
+    const formData = `al=1&ids=${requestId}`;
     const response = await fetch(unavailableAudio, {
-      body: data,
+      body: formData,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'x-requested-with': 'XMLHttpRequest',
       },
       method: 'POST',
-    }).catch(() => reject('The request link is unaccessible'));
-    if (!response?.body) reject("The response doesn't have a body");
+    });
+    if (!(response && response.ok)) reject('Link is not available');
 
-    const reader = (<ReadableStream<Uint8Array>>response?.body).getReader();
-    const blob = await reader.read().catch(() => reject('Unable to create an MP3Unavailabe BLOB'));
-    const text = decoder.decode(blob?.value);
-    const start = text.indexOf('https:');
-
-    if (start !== -1) {
-      const end = text.indexOf('"', start + 1);
-      resolve(text.substring(start, end));
-    } else {
-      reject('Bad response data');
-    }
+    const data = await response.json().catch(() => reject('Bad response data'));
+    resolve(data.payload[1][0][0][2]); // always there if exists
   });
 }
 
@@ -169,16 +158,18 @@ function createDownloadAction(): HTMLButtonElement {
   return but;
 }
 
+// This function finds the contextual menu amongst other mutations
+// While loops are used instead of forEach() loops to be able to return immediately
 function getMutation(mutations: Array<MutationRecord>): HTMLDivElement | null {
   let mutationIndex = 0;
   while (mutationIndex < mutations.length) {
     let nodeIndex = 0;
     while (nodeIndex < mutations[mutationIndex].addedNodes.length) {
-      const currentNode = mutations[mutationIndex].addedNodes[nodeIndex];
+      const currentNode = <HTMLDivElement>mutations[mutationIndex].addedNodes[nodeIndex];
       if (
         currentNode.nodeName === 'DIV' &&
-        (<HTMLDivElement>currentNode).classList.contains('eltt') &&
-        (<HTMLDivElement>currentNode).classList.contains('_audio_row__tt')
+        currentNode.classList.contains('eltt') &&
+        currentNode.classList.contains('_audio_row__tt')
       )
         return <HTMLDivElement>currentNode;
       ++nodeIndex;
@@ -195,7 +186,9 @@ const OBSERVER = new MutationObserver((mutations, observer) => {
   if (!audioMoreActions) return;
 
   // since add_to_playlist is always there we can rely on it
-  const refNode = audioMoreActions.querySelector('button.audio_row__more_action.audio_row__more_action_add_to_playlist');
+  const refNode = audioMoreActions.querySelector(
+    'button.audio_row__more_action.audio_row__more_action_add_to_playlist'
+  );
   if (!refNode) return;
 
   const downloadButton = createDownloadAction();
@@ -212,7 +205,7 @@ const OBSERVER = new MutationObserver((mutations, observer) => {
   observer.disconnect();
 });
 
-// onRowOver and onRowLeave are going to be extended in order to preserve the original functionality
+// onRowOver is going to be extended in order to preserve the original functionality
 const regularOnRowOver = AudioUtils.onRowOver;
 
 function extendedOnRowOver(thisArg: any, event: MouseEvent) {
@@ -223,34 +216,16 @@ function extendedOnRowOver(thisArg: any, event: MouseEvent) {
   // What's even more weird and despicable, the ones placed in the first 2 locations are NOT removed from the DOM afterwards.
 
   // if target still exists (maybe it was a very fast hover)
-  if (target) {
-    if (target.tagName === 'BUTTON') {
-      if (target.getAttribute('data-action') === 'more') {
-        // primary div of an audio element with the data
-        CURRENT_TRACK = <HTMLDivElement>target.closest('div[data-audio]');
-
-        // check what to watch with observer depending on where we are on the website
-        // const wk_box = <HTMLDivElement>document.querySelector('div#wk_box');
-        // let watchedNode = document.body;
-        // if (wk_box) watchedNode = wk_box;
-        // else {
-        //   const audio_layer = <HTMLDivElement>document.querySelector('div#audio_layer_tt');
-        //   const audio_page = document.querySelector('div#content > div._audio_page_layout.audio_page_layout');
-
-        // check if the user is in the audious page or has audio layer opened up
-        // if (audio_page || (audio_layer && audio_layer.style.display !== 'none')) watchedNode = <HTMLDivElement>target.parentNode;
-        // }
-        OBSERVER.observe(document.body, {
-          childList: true,
-          subtree: true,
-        });
-      }
-    }
+  if (target && target.tagName === 'BUTTON' && target.getAttribute('data-action') === 'more') {
+    // primary div of an audio element with the data
+    CURRENT_TRACK = <HTMLDivElement>target.closest('div[data-audio]');
+    OBSERVER.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
   }
-
   // calling the native onRowOver to do its thing
   regularOnRowOver(thisArg, event);
 }
-
 // overriding regular onRowOver with the extended version
 AudioUtils.onRowOver = extendedOnRowOver;
