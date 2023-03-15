@@ -1,0 +1,17 @@
+{
+  "name": "vkAudio",
+  "description": "Скачивай музыку Вконтакте в один клик!",
+  "version": "1.0",
+  "manifest_version": 3,
+  "background": {
+    "service_worker": "index.js"
+  },
+  "web_accessible_resources": ["download.js", "inj_styles.css"],
+  "content_scripts": [
+    {
+      "matches": ["http://vk.com/*", "https://vk.com/*"],
+      "css": ["inj_styles.css"],
+      "js": ["injector.js"]
+    }
+  ]
+}
