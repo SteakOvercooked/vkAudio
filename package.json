@@ -7,6 +7,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "watchTS": "webpack -c webpack.config.js -w",
     "watchSCSS": "sass -w --no-source-map src/styles:build",
+    "buildSCSS": "sass --no-source-map src/styles:build",
+    "buildTS": "webpack -c webpack.config.js",
+    "copyManifest": "copy /y src\\manifest.json build\\manifest.json",
+    "buildAll": "npm-run-all --parallel buildTS buildSCSS copyManifest",
     "watchAll": "npm-run-all --parallel watchTS watchSCSS"
   },
   "author": "Ivan Kapitanov",
@@ -22,3 +26,4 @@
     "@types/chrome": "0.0.145"
   }
 }
+
