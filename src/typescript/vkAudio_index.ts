@@ -11,7 +11,7 @@ it is possible to trim a part of the link and replace "/index.m3u8" with ".mp3" 
 4 - Make a request to get the blob of an url, then construct an object url for the blob. Follow the blobURL to force the downloading of a file. 
 */
 
-import { getAudioLink, addNotification, removeNotification, notifyAboutError } from './helpers'; // helpers is for vk's link transformation functions and for notifications
+import { addNotification, removeNotification, notifyAboutError } from './helpers'; // helpers is for vk's link transformation functions and for notifications
 
 // request URL to get unavailable mp3 link and construct m3u8 link out of it
 const unavailableAudio = 'al_audio.php?act=reload_audio';
@@ -21,23 +21,16 @@ const unavailableAudio = 'al_audio.php?act=reload_audio';
 // NOTIFICATION - current notification, because 1 download at a time is allowed.
 let CURRENT_TRACK: HTMLDivElement, TRACK_TITLE: string, NOTIFICATION: HTMLDivElement | null;
 
-// interface and AudioUtils variable to make TS happy :) Represent VK's AudioUtils class and two of its functions that are used
-interface AU {
-  onRowOver: (thisArg: any, event: MouseEvent) => void;
-  asObject: (data: string) => any;
-}
-declare var AudioUtils: AU;
-
 // this function takes [audio-data] attribute of a track element and returns an object with that data (and maybe some extra, who knows?)
-function extractReqParameter(rawData: string): string {
-  const excessiveDetails = AudioUtils.asObject(JSON.parse(rawData));
-  TRACK_TITLE = `${(excessiveDetails.performer as string).replace(/\./g, '')} - ${(
-    excessiveDetails.title as string
-  ).replace(/\./g, '')} (vk_audio)`;
-  return (
-    excessiveDetails.fullId + '_' + excessiveDetails.actionHash + '_' + excessiveDetails.urlHash
-  );
-}
+// function extractReqParameter(rawData: string): string {
+//   const excessiveDetails = AudioUtils.asObject(JSON.parse(rawData));
+//   TRACK_TITLE = `${(excessiveDetails.performer as string).replace(/\./g, '')} - ${(
+//     excessiveDetails.title as string
+//   ).replace(/\./g, '')} (vk_audio)`;
+//   return (
+//     excessiveDetails.fullId + '_' + excessiveDetails.actionHash + '_' + excessiveDetails.urlHash
+//   );
+// }
 
 // this function fetches the passed url, creates a blob, creates an object link and follows it so a file gets downloaded
 function downloadMP3(url: string) {
@@ -115,9 +108,9 @@ function createDownloadAction(): HTMLButtonElement {
       });
       return;
     }
-    const requestParam = extractReqParameter(audioDataString);
+    // const requestParam = extractReqParameter(audioDataString);
     try {
-      const mp3aUnavailable = await getMP3Unavailable(requestParam);
+      // const mp3aUnavailable = await getMP3Unavailable(requestParam);
 
       const tryGetLink = new Promise<string>((resolve, reject) => {
         let m3u8Link: string,
@@ -127,7 +120,7 @@ function createDownloadAction(): HTMLButtonElement {
         // was passed to it (like when a track has just started playing and gets immediately downloaded... SMH).
         // The interval tries to get the result 5 times and rejects the promise if the counter is exceeded.
         let intervalID = setInterval(() => {
-          m3u8Link = getAudioLink(mp3aUnavailable);
+          // m3u8Link = getAudioLink(mp3aUnavailable);
 
           // if we got an m3u8 link
           if (m3u8Link.indexOf('.mp3?') === -1) {
@@ -179,34 +172,50 @@ function getMutation(mutations: Array<MutationRecord>): HTMLDivElement | null {
   return null;
 }
 
-const OBSERVER = new MutationObserver((mutations, observer) => {
-  // Each time the user hovers the button "more" the contextual menu appears.
-  // When it appears a new "download" button must be inserted.
-  const audioMoreActions = getMutation(mutations);
-  if (!audioMoreActions) return;
+const getRelatedAudio = (currentElement: HTMLElement): HTMLElement => {
+  if (currentElement.classList.contains('audio_row')) return currentElement;
+  return getRelatedAudio(currentElement.parentElement as HTMLElement);
+};
+
+const isOnAudio = (): [boolean, Element | undefined] => {
+  const moreActionButton = document.getElementsByClassName(
+    'audio_row__action audio_row__action_more _audio_row__action_more'
+  );
+  if (moreActionButton.length === 0) return [false, undefined];
+
+  const relatedAudio = getRelatedAudio(moreActionButton[0] as HTMLElement);
+  return [true, relatedAudio];
+};
+
+const waitForAudioOver = new MutationObserver(() => {
+  const [isOn, audioElement] = isOnAudio();
+  if (!isOn) return;
+  console.log('TRACK IS OVER!!!!');
 
   // since add_to_playlist is always there we can rely on it
-  const refNode = audioMoreActions.querySelector(
-    'button.audio_row__more_action.audio_row__more_action_add_to_playlist'
-  );
-  if (!refNode) return;
+  // const refNode = audioMoreActions.querySelector(
+  //   'button.audio_row__more_action.audio_row__more_action_add_to_playlist'
+  // );
+  // if (!refNode) return;
 
-  const downloadButton = createDownloadAction();
-  if (!refNode.parentNode) return;
+  // const downloadButton = createDownloadAction();
+  // if (!refNode.parentNode) return;
 
-  const actionList = <HTMLDivElement>refNode.parentNode;
-  actionList.insertBefore(downloadButton, refNode);
+  // const actionList = <HTMLDivElement>refNode.parentNode;
+  // actionList.insertBefore(downloadButton, refNode);
 
-  // making sure that if the contextual menu appears above the audio element it is brought one button higher to avoid UI bug
-  if (audioMoreActions.classList.contains('eltt_top')) {
-    let top = parseInt(audioMoreActions.style.top);
-    audioMoreActions.style.top = `${top - 32}px`;
-  }
-  observer.disconnect();
+  // // making sure that if the contextual menu appears above the audio element it is brought one button higher to avoid UI bug
+  // if (audioMoreActions.classList.contains('eltt_top')) {
+  //   let top = parseInt(audioMoreActions.style.top);
+  //   audioMoreActions.style.top = `${top - 32}px`;
+  // }
+  // observer.disconnect();
 });
 
-// onRowOver is going to be extended in order to preserve the original functionality
-const regularOnRowOver = AudioUtils.onRowOver;
+waitForAudioOver.observe(document.body, {
+  subtree: true,
+  childList: true,
+});
 
 function extendedOnRowOver(thisArg: any, event: MouseEvent) {
   const target = <HTMLElement>event.target;
@@ -219,13 +228,19 @@ function extendedOnRowOver(thisArg: any, event: MouseEvent) {
   if (target && target.tagName === 'BUTTON' && target.getAttribute('data-action') === 'more') {
     // primary div of an audio element with the data
     CURRENT_TRACK = <HTMLDivElement>target.closest('div[data-audio]');
-    OBSERVER.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+    // OBSERVER.observe(document.body, {
+    //   childList: true,
+    //   subtree: true,
+    // });
   }
-  // calling the native onRowOver to do its thing
-  regularOnRowOver(thisArg, event);
 }
-// overriding regular onRowOver with the extended version
-AudioUtils.onRowOver = extendedOnRowOver;
+/*
+watching for:
+
+button with class audio_row__action audio_row__action_more _audio_row__action_more
+then start watching for the div with class eltt _audio_row__tt
+
+add global state to observer to it doesn't react when other buttons are hovered over
+add second observer
+
+*/
