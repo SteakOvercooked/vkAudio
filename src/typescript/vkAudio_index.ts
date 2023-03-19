@@ -1,5 +1,5 @@
 /*
-The way that this works:
+The way that this doesn't work:
 1 - Override VK's functions that are exported on the window object to be able to react when a mouse is over the "more" button on a soundtrack.
 2 - Create a handler (an above mentioned reaction) that finds the node to watch, starts watching it and when a child is inserted (contextual menu)
 adds the "download" option.
@@ -9,238 +9,171 @@ This gives us a link of form "https://vk.com/mp3/audio_api_unavailable.mp3?extra
 sweat... and debugger). The result of the algorithm is a link of 2 types (not sure how to predict the type though) that are described below in the code. With that,
 it is possible to trim a part of the link and replace "/index.m3u8" with ".mp3" getting a link to mp3 file as a result.
 4 - Make a request to get the blob of an url, then construct an object url for the blob. Follow the blobURL to force the downloading of a file. 
+
+NOT ALL AUDIOS CAN BE DOWNLOADED THIS WAY, SOME LINKS FAIL TO TRANSFORM
 */
-
-import { addNotification, removeNotification, notifyAboutError } from './helpers'; // helpers is for vk's link transformation functions and for notifications
-
-// request URL to get unavailable mp3 link and construct m3u8 link out of it
-const unavailableAudio = 'al_audio.php?act=reload_audio';
-
-// CURRENT_TRACK - the one that the user is hovering over.
-// TRACK_TITLE - performer + title without "."
-// NOTIFICATION - current notification, because 1 download at a time is allowed.
-let CURRENT_TRACK: HTMLDivElement, TRACK_TITLE: string, NOTIFICATION: HTMLDivElement | null;
-
-// this function takes [audio-data] attribute of a track element and returns an object with that data (and maybe some extra, who knows?)
-// function extractReqParameter(rawData: string): string {
-//   const excessiveDetails = AudioUtils.asObject(JSON.parse(rawData));
-//   TRACK_TITLE = `${(excessiveDetails.performer as string).replace(/\./g, '')} - ${(
-//     excessiveDetails.title as string
-//   ).replace(/\./g, '')} (vk_audio)`;
-//   return (
-//     excessiveDetails.fullId + '_' + excessiveDetails.actionHash + '_' + excessiveDetails.urlHash
-//   );
-// }
-
-// this function fetches the passed url, creates a blob, creates an object link and follows it so a file gets downloaded
-function downloadMP3(url: string) {
-  return new Promise<void>(async (resolve, reject) => {
-    const response = await fetch(url);
-    if (!response.ok) reject('Bad response type');
-
-    const blob = await response.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.setAttribute('download', TRACK_TITLE);
-    a.click();
-    resolve();
-  });
-}
-
-/*
-
-2 types of links:
-
-https://psv4.vkuseraudio.net/c813230/u214475989/db125367ad4/audios/9899b7c1f381/index.m3u8?
-
-https://cs9-22v4.vkuseraudio.net/p4/db59a6b94bf/e0819fc7302e93/index.m3u8?
-
-*/
-
-// this function replaces some stuff and deletes the other stuff to get an mp3 link out of an m3u8 link
-function getMP3Link(m3u8Link: string) {
-  // see what type of link it is
-  const start = m3u8Link.indexOf('//'),
-    end = m3u8Link.indexOf('.vkuseraudio');
-  let regex: RegExp;
-  if (m3u8Link.substring(start, end).indexOf('-') !== -1) {
-    // if the second type of link (which is prevailing tbh)
-    regex = /(\/p\d+\/)(\w+\/)(\w+)(\/index\.m3u8)/;
-  } else {
-    regex = /(\.net\/\w+\/\w+\/)(\w+\/)(.+)(\/index\.m3u8)/;
-  }
-  return m3u8Link.replace(regex, '$1$3.mp3');
-}
-
-// This function requests the track's mp3Unavailable link.
-function getMP3Unavailable(requestId: string): Promise<string> {
-  return new Promise(async (resolve, reject) => {
-    const formData = `al=1&ids=${requestId}`;
-    const response = await fetch(unavailableAudio, {
-      body: formData,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'x-requested-with': 'XMLHttpRequest',
-      },
-      method: 'POST',
-    });
-    if (!(response && response.ok)) reject('Link is not available');
-
-    const data = await response.json().catch(() => reject('Bad response data'));
-    resolve(data.payload[1][0][0][2]); // always there if exists
-  });
-}
-
-// this function creates a button and its download event handler
-function createDownloadAction(): HTMLButtonElement {
-  const but = document.createElement('button');
-  but.classList.add('audio_row__more_action', 'audio_row__more_action_download');
-  but.innerText = 'Скачать';
-  but.addEventListener('click', async () => {
-    // only 1 download action at a time
-    if (NOTIFICATION) return;
-
-    NOTIFICATION = addNotification();
-    const audioDataString = CURRENT_TRACK.getAttribute('data-audio');
-    if (!audioDataString) {
-      notifyAboutError(NOTIFICATION, () => {
-        NOTIFICATION = null;
-      });
-      return;
-    }
-    // const requestParam = extractReqParameter(audioDataString);
-    try {
-      // const mp3aUnavailable = await getMP3Unavailable(requestParam);
-
-      const tryGetLink = new Promise<string>((resolve, reject) => {
-        let m3u8Link: string,
-          counter = 1;
-
-        // The reason for using interval is that sometimes VK's getAudioLink function returns the same thing that
-        // was passed to it (like when a track has just started playing and gets immediately downloaded... SMH).
-        // The interval tries to get the result 5 times and rejects the promise if the counter is exceeded.
-        let intervalID = setInterval(() => {
-          // m3u8Link = getAudioLink(mp3aUnavailable);
-
-          // if we got an m3u8 link
-          if (m3u8Link.indexOf('.mp3?') === -1) {
-            clearInterval(intervalID);
-            resolve(m3u8Link);
-          } else {
-            counter += 1;
-            if (counter > 5) {
-              clearInterval(intervalID);
-              reject('Unable to get the link to MP3 file');
-            }
-          }
-        }, 150);
-      });
-
-      const m3u8Link = await tryGetLink;
-      const mp3Link = getMP3Link(m3u8Link);
-      await downloadMP3(mp3Link);
-      removeNotification(NOTIFICATION, () => {
-        NOTIFICATION = null;
-      });
-    } catch (err) {
-      notifyAboutError(NOTIFICATION, () => {
-        NOTIFICATION = null;
-      });
-    }
-  });
-  return but;
-}
-
-// This function finds the contextual menu amongst other mutations
-// While loops are used instead of forEach() loops to be able to return immediately
-function getMutation(mutations: Array<MutationRecord>): HTMLDivElement | null {
-  let mutationIndex = 0;
-  while (mutationIndex < mutations.length) {
-    let nodeIndex = 0;
-    while (nodeIndex < mutations[mutationIndex].addedNodes.length) {
-      const currentNode = <HTMLDivElement>mutations[mutationIndex].addedNodes[nodeIndex];
-      if (
-        currentNode.nodeName === 'DIV' &&
-        currentNode.classList.contains('eltt') &&
-        currentNode.classList.contains('_audio_row__tt')
-      )
-        return <HTMLDivElement>currentNode;
-      ++nodeIndex;
-    }
-    ++mutationIndex;
-  }
-  return null;
-}
 
 const getRelatedAudio = (currentElement: HTMLElement): HTMLElement => {
   if (currentElement.classList.contains('audio_row')) return currentElement;
   return getRelatedAudio(currentElement.parentElement as HTMLElement);
 };
 
-const isOnAudio = (): [boolean, Element | undefined] => {
-  const moreActionButton = document.getElementsByClassName(
-    'audio_row__action audio_row__action_more _audio_row__action_more'
-  );
-  if (moreActionButton.length === 0) return [false, undefined];
+const isInteracted = (classList: string): [boolean, HTMLElement | undefined] => {
+  const element = document.getElementsByClassName(classList);
+  if (element.length === 0) return [false, undefined];
 
-  const relatedAudio = getRelatedAudio(moreActionButton[0] as HTMLElement);
-  return [true, relatedAudio];
+  return [true, element[0] as HTMLElement];
 };
 
-const waitForAudioOver = new MutationObserver(() => {
-  const [isOn, audioElement] = isOnAudio();
-  if (!isOn) return;
-  console.log('TRACK IS OVER!!!!');
+class AudioInteractionWatcher {
+  private interactedAudio: HTMLElement | undefined;
+  private interactedActionList: HTMLElement | undefined;
 
-  // since add_to_playlist is always there we can rely on it
-  // const refNode = audioMoreActions.querySelector(
-  //   'button.audio_row__more_action.audio_row__more_action_add_to_playlist'
-  // );
-  // if (!refNode) return;
+  private audioOverWatcher: MutationObserver;
+  private actionsOverWatcher: MutationObserver;
+  private someWatcher: MutationObserver;
 
-  // const downloadButton = createDownloadAction();
-  // if (!refNode.parentNode) return;
+  constructor() {
+    this.interactedActionList = undefined;
+    this.interactedAudio = undefined;
 
-  // const actionList = <HTMLDivElement>refNode.parentNode;
-  // actionList.insertBefore(downloadButton, refNode);
+    this.audioMouseLeave = this.audioMouseLeave.bind(this);
+    this.mouseEnterActionMore = this.mouseEnterActionMore.bind(this);
+    this.moreButtonMouseLeave = this.moreButtonMouseLeave.bind(this);
+    this.actionListMouseLeave = this.actionListMouseLeave.bind(this);
+    this.audioOver = this.audioOver.bind(this);
+    this.actionsOver = this.actionsOver.bind(this);
+    this.cleanup = this.cleanup.bind(this);
+    this.somethingAction = this.somethingAction.bind(this);
+    this.actionListMouseEnter = this.actionListMouseEnter.bind(this);
+  }
 
-  // // making sure that if the contextual menu appears above the audio element it is brought one button higher to avoid UI bug
-  // if (audioMoreActions.classList.contains('eltt_top')) {
-  //   let top = parseInt(audioMoreActions.style.top);
-  //   audioMoreActions.style.top = `${top - 32}px`;
-  // }
-  // observer.disconnect();
-});
+  private cleanup() {
+    (this.interactedAudio as Element).removeEventListener('mouseleave', this.audioMouseLeave);
+  }
 
-waitForAudioOver.observe(document.body, {
-  subtree: true,
-  childList: true,
-});
+  private mouseEnterActionMore() {
+    if (this.interactedActionList !== undefined) return;
+    this.actionsOverWatcher.observe(document.body, {
+      subtree: true,
+      childList: true,
+    });
+    console.log('%cSTARTED OBSERVING FOR ACTIONS', 'color: green');
+  }
 
-function extendedOnRowOver(thisArg: any, event: MouseEvent) {
-  const target = <HTMLElement>event.target;
+  private audioMouseLeave(e: MouseEvent) {
+    if (e.relatedTarget === this.interactedActionList) return;
+    console.log('%cCURSOR MOVED NOT ON ACTIONS', 'color: cyan');
+    this.cleanup();
+    this.interactedAudio = undefined;
+    if (this.interactedActionList === undefined) return;
+    (this.interactedActionList.parentNode as Node).removeChild(this.interactedActionList);
+    this.interactedActionList = undefined;
+  }
 
-  // Weirdly enough the location of the contextual menu in the document is NOT consistent throughout the website.
-  // It can be placed in the "#wk_box" div, in the "body" of the document or in the parent div of the button "more".
-  // What's even more weird and despicable, the ones placed in the first 2 locations are NOT removed from the DOM afterwards.
+  private moreButtonMouseLeave() {
+    if (this.interactedActionList !== undefined) return;
+    this.actionsOverWatcher.disconnect();
+    console.log('%cSTOPPED OBSERVING FOR ACTIONS', 'color: red');
+  }
 
-  // if target still exists (maybe it was a very fast hover)
-  if (target && target.tagName === 'BUTTON' && target.getAttribute('data-action') === 'more') {
-    // primary div of an audio element with the data
-    CURRENT_TRACK = <HTMLDivElement>target.closest('div[data-audio]');
-    // OBSERVER.observe(document.body, {
-    //   childList: true,
-    //   subtree: true,
-    // });
+  private actionListMouseEnter() {
+    this.someWatcher.disconnect();
+  }
+
+  somethingAction() {
+    this.cleanup();
+    this.interactedAudio = undefined;
+    // not quite right, need to wait in order to delete
+    ((this.interactedActionList as Element).parentNode as Node).removeChild(
+      this.interactedActionList as Element
+    );
+    this.interactedActionList = undefined;
+  }
+
+  private actionListMouseLeave(e: MouseEvent) {
+    if ((this.interactedAudio as Element).contains(e.relatedTarget as Node)) return;
+    // if (e.relatedTarget === this.interactedAudio) return;
+    console.log('CURSOR MOVED NOT ON RELATED AUDIO');
+    this.someWatcher.observe(this.interactedActionList as Node, { attributeFilter: ['style'] });
+  }
+
+  setAudioOverWatcher(watcher: MutationObserver) {
+    this.audioOverWatcher = watcher;
+  }
+
+  setActionsOverWatcher(watcher: MutationObserver) {
+    this.actionsOverWatcher = watcher;
+  }
+
+  setSomeWatcher(watcher: MutationObserver) {
+    this.someWatcher = watcher;
+  }
+
+  audioOver() {
+    if (this.interactedActionList !== undefined) return;
+
+    const [isRowInteracted, actionMore] = isInteracted(
+      'audio_row__action audio_row__action_more _audio_row__action_more'
+    );
+    if (!isRowInteracted) return;
+
+    const relatedAudio = getRelatedAudio(actionMore as HTMLElement);
+    if (this.interactedAudio === relatedAudio) return;
+    this.interactedAudio = relatedAudio;
+    const attrib = JSON.parse(relatedAudio.getAttribute('data-audio') as string);
+
+    (actionMore as Element).addEventListener('mouseenter', this.mouseEnterActionMore, {
+      once: true,
+    });
+    (actionMore as Element).addEventListener('mouseleave', this.moreButtonMouseLeave);
+    relatedAudio.addEventListener('mouseleave', this.audioMouseLeave);
+    console.log('User is on ', attrib[4], ' - ', attrib[3]);
+  }
+
+  actionsOver() {
+    const [isButtonInteracted, actionList] = isInteracted('eltt _audio_row__tt');
+    if (!isButtonInteracted) return;
+
+    this.interactedActionList = actionList;
+    console.log('ACTION LIST APPEARED ' + actionList);
+    (actionList as HTMLElement).addEventListener('mouseleave', this.actionListMouseLeave);
+    (actionList as HTMLElement).addEventListener('mouseenter', this.actionListMouseEnter);
+    this.actionsOverWatcher.disconnect();
+    console.log('%cSTOPPED OBSERVING FOR ACTIONS', 'color: red');
+  }
+
+  run() {
+    this.audioOverWatcher.observe(document.body, { subtree: true, childList: true });
   }
 }
-/*
-watching for:
 
-button with class audio_row__action audio_row__action_more _audio_row__action_more
-then start watching for the div with class eltt _audio_row__tt
+const Watcher = new AudioInteractionWatcher();
+const waitForAudioOver = new MutationObserver(Watcher.audioOver);
+const waitForActionsOver = new MutationObserver(Watcher.actionsOver);
+const waitForDeletion = new MutationObserver(Watcher.somethingAction);
 
-add global state to observer to it doesn't react when other buttons are hovered over
-add second observer
+Watcher.setAudioOverWatcher(waitForAudioOver);
+Watcher.setActionsOverWatcher(waitForActionsOver);
+Watcher.setSomeWatcher(waitForDeletion);
 
-*/
+Watcher.run();
+
+// since add_to_playlist is always there we can rely on it
+// const refNode = audioMoreActions.querySelector(
+//   'button.audio_row__more_action.audio_row__more_action_add_to_playlist'
+// );
+// if (!refNode) return;
+
+// const downloadButton = createDownloadAction();
+// if (!refNode.parentNode) return;
+
+// const actionList = <HTMLDivElement>refNode.parentNode;
+// actionList.insertBefore(downloadButton, refNode);
+
+// // making sure that if the contextual menu appears above the audio element it is brought one button higher to avoid UI bug
+// if (audioMoreActions.classList.contains('eltt_top')) {
+//   let top = parseInt(audioMoreActions.style.top);
+//   audioMoreActions.style.top = `${top - 32}px`;
+// }
+// observer.disconnect();
