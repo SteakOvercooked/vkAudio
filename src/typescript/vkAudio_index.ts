@@ -13,24 +13,24 @@ it is possible to trim a part of the link and replace "/index.m3u8" with ".mp3" 
 NOT ALL AUDIOS CAN BE DOWNLOADED THIS WAY, SOME LINKS FAIL TO TRANSFORM
 */
 
-const hasAppeared = (classList: string): [boolean, HTMLElement | undefined] => {
+const hasAppeared = (classList: string): HTMLElement | null => {
   const element = document.getElementsByClassName(classList);
-  if (element.length === 0) return [false, undefined];
+  if (element.length === 0) return null;
 
-  return [true, element[0] as HTMLElement];
+  return element[0] as HTMLElement;
 };
 
 class AudioInteractionWatcher {
-  private interactedAudio: HTMLElement | undefined;
-  private interactedActionList: HTMLElement | undefined;
+  private interactedAudio: HTMLElement | null;
+  private interactedActionList: HTMLElement | null;
 
   private audioOverWatcher: MutationObserver;
   private actionsAppearedWatcher: MutationObserver;
   private actionsDisappearedWatcher: MutationObserver;
 
   constructor() {
-    this.interactedActionList = undefined;
-    this.interactedAudio = undefined;
+    this.interactedActionList = null;
+    this.interactedAudio = null;
 
     this.audioMouseLeave = this.audioMouseLeave.bind(this);
     this.mouseEnterActionMore = this.mouseEnterActionMore.bind(this);
@@ -48,7 +48,7 @@ class AudioInteractionWatcher {
   }
 
   private mouseEnterActionMore() {
-    if (this.interactedActionList !== undefined) return;
+    if (this.interactedActionList !== null) return;
     this.actionsAppearedWatcher.observe(document.body, {
       subtree: true,
       childList: true,
@@ -59,14 +59,14 @@ class AudioInteractionWatcher {
   private audioMouseLeave(e: MouseEvent) {
     if (e.relatedTarget === this.interactedActionList) return;
     this.cleanup();
-    this.interactedAudio = undefined;
-    if (this.interactedActionList === undefined) return;
+    this.interactedAudio = null;
+    if (this.interactedActionList === null) return;
     (this.interactedActionList.parentNode as Node).removeChild(this.interactedActionList);
-    this.interactedActionList = undefined;
+    this.interactedActionList = null;
   }
 
   private moreButtonMouseLeave() {
-    if (this.interactedActionList !== undefined) return;
+    if (this.interactedActionList !== null) return;
     this.actionsAppearedWatcher.disconnect();
     console.log('%cSTOPPED OBSERVING FOR ACTIONS', 'color: red');
   }
@@ -77,11 +77,11 @@ class AudioInteractionWatcher {
 
   actionsDisappeared() {
     this.cleanup();
-    this.interactedAudio = undefined;
+    this.interactedAudio = null;
     ((this.interactedActionList as Element).parentNode as Node).removeChild(
       this.interactedActionList as Element
     );
-    this.interactedActionList = undefined;
+    this.interactedActionList = null;
   }
 
   private actionListMouseLeave(e: MouseEvent) {
@@ -104,34 +104,34 @@ class AudioInteractionWatcher {
   }
 
   audioOver() {
-    if (this.interactedActionList !== undefined) return;
+    if (this.interactedActionList !== null) return;
 
-    const [appeared, actionMore] = hasAppeared(
+    const actionMore = hasAppeared(
       'audio_row__action audio_row__action_more _audio_row__action_more'
     );
-    if (!appeared) return;
+    if (actionMore === null) return;
 
-    const relatedAudio = (actionMore as HTMLElement).closest('audio_row') as HTMLElement;
+    const relatedAudio = actionMore.closest('.audio_row') as HTMLElement;
     if (this.interactedAudio === relatedAudio) return;
     this.interactedAudio = relatedAudio;
     const attrib = JSON.parse(relatedAudio.getAttribute('data-audio') as string);
 
-    (actionMore as Element).addEventListener('mouseenter', this.mouseEnterActionMore, {
+    actionMore.addEventListener('mouseenter', this.mouseEnterActionMore, {
       once: true,
     });
-    (actionMore as Element).addEventListener('mouseleave', this.moreButtonMouseLeave);
+    actionMore.addEventListener('mouseleave', this.moreButtonMouseLeave);
     relatedAudio.addEventListener('mouseleave', this.audioMouseLeave);
     console.log('User is on ', attrib[4], ' - ', attrib[3]);
   }
 
   actionsAppeared() {
-    const [appeared, actionList] = hasAppeared('eltt _audio_row__tt');
-    if (!appeared) return;
+    const actionList = hasAppeared('eltt _audio_row__tt');
+    if (actionList === null) return;
 
     this.interactedActionList = actionList;
     console.log('%cACTION LIST APPEARED', 'color: yellow');
-    (actionList as HTMLElement).addEventListener('mouseleave', this.actionListMouseLeave);
-    (actionList as HTMLElement).addEventListener('mouseenter', this.actionListMouseEnter);
+    actionList.addEventListener('mouseleave', this.actionListMouseLeave);
+    actionList.addEventListener('mouseenter', this.actionListMouseEnter);
     this.actionsAppearedWatcher.disconnect();
     console.log('%cSTOPPED OBSERVING FOR ACTIONS', 'color: red');
   }
