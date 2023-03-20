@@ -13,11 +13,6 @@ it is possible to trim a part of the link and replace "/index.m3u8" with ".mp3" 
 NOT ALL AUDIOS CAN BE DOWNLOADED THIS WAY, SOME LINKS FAIL TO TRANSFORM
 */
 
-const getRelatedAudio = (currentElement: HTMLElement): HTMLElement => {
-  if (currentElement.classList.contains('audio_row')) return currentElement;
-  return getRelatedAudio(currentElement.parentElement as HTMLElement);
-};
-
 const isInteracted = (classList: string): [boolean, HTMLElement | undefined] => {
   const element = document.getElementsByClassName(classList);
   if (element.length === 0) return [false, undefined];
@@ -84,7 +79,6 @@ class AudioInteractionWatcher {
   somethingAction() {
     this.cleanup();
     this.interactedAudio = undefined;
-    // not quite right, need to wait in order to delete
     ((this.interactedActionList as Element).parentNode as Node).removeChild(
       this.interactedActionList as Element
     );
@@ -93,7 +87,6 @@ class AudioInteractionWatcher {
 
   private actionListMouseLeave(e: MouseEvent) {
     if ((this.interactedAudio as Element).contains(e.relatedTarget as Node)) return;
-    // if (e.relatedTarget === this.interactedAudio) return;
     console.log('CURSOR MOVED NOT ON RELATED AUDIO');
     this.someWatcher.observe(this.interactedActionList as Node, { attributeFilter: ['style'] });
   }
@@ -118,7 +111,7 @@ class AudioInteractionWatcher {
     );
     if (!isRowInteracted) return;
 
-    const relatedAudio = getRelatedAudio(actionMore as HTMLElement);
+    const relatedAudio = (actionMore as HTMLElement).closest('audio_row') as HTMLElement;
     if (this.interactedAudio === relatedAudio) return;
     this.interactedAudio = relatedAudio;
     const attrib = JSON.parse(relatedAudio.getAttribute('data-audio') as string);
