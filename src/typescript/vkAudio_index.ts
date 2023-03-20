@@ -31,65 +31,55 @@ class AudioInteractionWatcher {
   constructor() {
     this.interactedActionList = null;
     this.interactedAudio = null;
-
-    this.audioMouseLeave = this.audioMouseLeave.bind(this);
-    this.mouseEnterActionMore = this.mouseEnterActionMore.bind(this);
-    this.moreButtonMouseLeave = this.moreButtonMouseLeave.bind(this);
-    this.actionListMouseLeave = this.actionListMouseLeave.bind(this);
-    this.audioOver = this.audioOver.bind(this);
-    this.actionsAppeared = this.actionsAppeared.bind(this);
-    this.cleanup = this.cleanup.bind(this);
-    this.actionsDisappeared = this.actionsDisappeared.bind(this);
-    this.actionListMouseEnter = this.actionListMouseEnter.bind(this);
   }
 
-  private cleanup() {
+  private cleanup = () => {
     (this.interactedAudio as Element).removeEventListener('mouseleave', this.audioMouseLeave);
-  }
+  };
 
-  private mouseEnterActionMore() {
+  private mouseEnterActionMore = () => {
     if (this.interactedActionList !== null) return;
     this.actionsAppearedWatcher.observe(document.body, {
       subtree: true,
       childList: true,
     });
     console.log('%cSTARTED OBSERVING FOR ACTIONS', 'color: green');
-  }
+  };
 
-  private audioMouseLeave(e: MouseEvent) {
+  private audioMouseLeave = (e: MouseEvent) => {
     if (e.relatedTarget === this.interactedActionList) return;
     this.cleanup();
     this.interactedAudio = null;
     if (this.interactedActionList === null) return;
     (this.interactedActionList.parentNode as Node).removeChild(this.interactedActionList);
     this.interactedActionList = null;
-  }
+  };
 
-  private moreButtonMouseLeave() {
+  private moreButtonMouseLeave = () => {
     if (this.interactedActionList !== null) return;
     this.actionsAppearedWatcher.disconnect();
     console.log('%cSTOPPED OBSERVING FOR ACTIONS', 'color: red');
-  }
+  };
 
-  private actionListMouseEnter() {
+  private actionListMouseEnter = () => {
     this.actionsDisappearedWatcher.disconnect();
-  }
+  };
 
-  actionsDisappeared() {
+  actionsDisappeared = () => {
     this.cleanup();
     this.interactedAudio = null;
     ((this.interactedActionList as Element).parentNode as Node).removeChild(
       this.interactedActionList as Element
     );
     this.interactedActionList = null;
-  }
+  };
 
-  private actionListMouseLeave(e: MouseEvent) {
+  private actionListMouseLeave = (e: MouseEvent) => {
     if ((this.interactedAudio as Element).contains(e.relatedTarget as Node)) return;
     this.actionsDisappearedWatcher.observe(this.interactedActionList as Node, {
       attributeFilter: ['style'],
     });
-  }
+  };
 
   setAudioOverWatcher(watcher: MutationObserver) {
     this.audioOverWatcher = watcher;
@@ -103,7 +93,7 @@ class AudioInteractionWatcher {
     this.actionsDisappearedWatcher = watcher;
   }
 
-  audioOver() {
+  audioOver = () => {
     if (this.interactedActionList !== null) return;
 
     const actionMore = hasAppeared(
@@ -122,9 +112,9 @@ class AudioInteractionWatcher {
     actionMore.addEventListener('mouseleave', this.moreButtonMouseLeave);
     relatedAudio.addEventListener('mouseleave', this.audioMouseLeave);
     console.log('User is on ', attrib[4], ' - ', attrib[3]);
-  }
+  };
 
-  actionsAppeared() {
+  actionsAppeared = () => {
     const actionList = hasAppeared('eltt _audio_row__tt');
     if (actionList === null) return;
 
@@ -134,11 +124,11 @@ class AudioInteractionWatcher {
     actionList.addEventListener('mouseenter', this.actionListMouseEnter);
     this.actionsAppearedWatcher.disconnect();
     console.log('%cSTOPPED OBSERVING FOR ACTIONS', 'color: red');
-  }
+  };
 
-  run() {
+  run = () => {
     this.audioOverWatcher.observe(document.body, { subtree: true, childList: true });
-  }
+  };
 }
 
 const Watcher = new AudioInteractionWatcher();

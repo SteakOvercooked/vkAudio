@@ -17,17 +17,11 @@ module.exports = {
         test: /\.ts$/,
         use: [
           {
-            loader: 'ts-loader',
-            options: {
-              configFile: './tsconfig.json',
-            },
+            loader: 'babel-loader',
           },
         ],
         exclude: /node_modules/,
       },
     ],
-  },
-  resolve: {
-    extensions: ['.ts'],
   },
 };
