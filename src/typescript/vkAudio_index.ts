@@ -25,8 +25,8 @@ class AudioInteractionWatcher {
   private interactedActionList: HTMLElement | undefined;
 
   private audioOverWatcher: MutationObserver;
-  private actionsOverWatcher: MutationObserver;
-  private someWatcher: MutationObserver;
+  private actionsAppearedWatcher: MutationObserver;
+  private actionsDisappearedWatcher: MutationObserver;
 
   constructor() {
     this.interactedActionList = undefined;
@@ -37,9 +37,9 @@ class AudioInteractionWatcher {
     this.moreButtonMouseLeave = this.moreButtonMouseLeave.bind(this);
     this.actionListMouseLeave = this.actionListMouseLeave.bind(this);
     this.audioOver = this.audioOver.bind(this);
-    this.actionsOver = this.actionsOver.bind(this);
+    this.actionsAppeared = this.actionsAppeared.bind(this);
     this.cleanup = this.cleanup.bind(this);
-    this.somethingAction = this.somethingAction.bind(this);
+    this.actionsDisappeared = this.actionsDisappeared.bind(this);
     this.actionListMouseEnter = this.actionListMouseEnter.bind(this);
   }
 
@@ -49,7 +49,7 @@ class AudioInteractionWatcher {
 
   private mouseEnterActionMore() {
     if (this.interactedActionList !== undefined) return;
-    this.actionsOverWatcher.observe(document.body, {
+    this.actionsAppearedWatcher.observe(document.body, {
       subtree: true,
       childList: true,
     });
@@ -67,15 +67,15 @@ class AudioInteractionWatcher {
 
   private moreButtonMouseLeave() {
     if (this.interactedActionList !== undefined) return;
-    this.actionsOverWatcher.disconnect();
+    this.actionsAppearedWatcher.disconnect();
     console.log('%cSTOPPED OBSERVING FOR ACTIONS', 'color: red');
   }
 
   private actionListMouseEnter() {
-    this.someWatcher.disconnect();
+    this.actionsDisappearedWatcher.disconnect();
   }
 
-  somethingAction() {
+  actionsDisappeared() {
     this.cleanup();
     this.interactedAudio = undefined;
     ((this.interactedActionList as Element).parentNode as Node).removeChild(
@@ -86,19 +86,21 @@ class AudioInteractionWatcher {
 
   private actionListMouseLeave(e: MouseEvent) {
     if ((this.interactedAudio as Element).contains(e.relatedTarget as Node)) return;
-    this.someWatcher.observe(this.interactedActionList as Node, { attributeFilter: ['style'] });
+    this.actionsDisappearedWatcher.observe(this.interactedActionList as Node, {
+      attributeFilter: ['style'],
+    });
   }
 
   setAudioOverWatcher(watcher: MutationObserver) {
     this.audioOverWatcher = watcher;
   }
 
-  setActionsOverWatcher(watcher: MutationObserver) {
-    this.actionsOverWatcher = watcher;
+  setActionsAppearedWatcher(watcher: MutationObserver) {
+    this.actionsAppearedWatcher = watcher;
   }
 
-  setSomeWatcher(watcher: MutationObserver) {
-    this.someWatcher = watcher;
+  setActionsDisappearedWatcher(watcher: MutationObserver) {
+    this.actionsDisappearedWatcher = watcher;
   }
 
   audioOver() {
@@ -122,7 +124,7 @@ class AudioInteractionWatcher {
     console.log('User is on ', attrib[4], ' - ', attrib[3]);
   }
 
-  actionsOver() {
+  actionsAppeared() {
     const [appeared, actionList] = hasAppeared('eltt _audio_row__tt');
     if (!appeared) return;
 
@@ -130,7 +132,7 @@ class AudioInteractionWatcher {
     console.log('%cACTION LIST APPEARED', 'color: yellow');
     (actionList as HTMLElement).addEventListener('mouseleave', this.actionListMouseLeave);
     (actionList as HTMLElement).addEventListener('mouseenter', this.actionListMouseEnter);
-    this.actionsOverWatcher.disconnect();
+    this.actionsAppearedWatcher.disconnect();
     console.log('%cSTOPPED OBSERVING FOR ACTIONS', 'color: red');
   }
 
@@ -141,12 +143,12 @@ class AudioInteractionWatcher {
 
 const Watcher = new AudioInteractionWatcher();
 const waitForAudioOver = new MutationObserver(Watcher.audioOver);
-const waitForActionsOver = new MutationObserver(Watcher.actionsOver);
-const waitForDeletion = new MutationObserver(Watcher.somethingAction);
+const waitForActionsOver = new MutationObserver(Watcher.actionsAppeared);
+const waitForDeletion = new MutationObserver(Watcher.actionsDisappeared);
 
 Watcher.setAudioOverWatcher(waitForAudioOver);
-Watcher.setActionsOverWatcher(waitForActionsOver);
-Watcher.setSomeWatcher(waitForDeletion);
+Watcher.setActionsAppearedWatcher(waitForActionsOver);
+Watcher.setActionsDisappearedWatcher(waitForDeletion);
 
 Watcher.run();
 
