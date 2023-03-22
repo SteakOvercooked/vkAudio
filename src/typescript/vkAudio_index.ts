@@ -21,20 +21,25 @@ const hasAppeared = (classList: string): HTMLElement | null => {
 };
 
 class AudioInteractionWatcher {
-  private interactedAudio: HTMLElement | null;
-  private interactedActionList: HTMLElement | null;
+  private currentAudio: HTMLElement | null;
+  private currentActionList: HTMLElement | null;
 
   audioOverWatcher: MutationObserver;
   actionsAppearedWatcher: MutationObserver;
   actionsDisappearedWatcher: MutationObserver;
 
   constructor() {
-    this.interactedActionList = null;
-    this.interactedAudio = null;
+    this.currentActionList = null;
+    this.currentAudio = null;
   }
 
-  private mouseEnterActionMore = () => {
-    if (this.interactedActionList !== null) return;
+  private audioMouseLeave = (e: MouseEvent) => {
+    if (e.relatedTarget === this.currentActionList) return;
+    this.cleanup();
+  };
+
+  private moreButtonMouseEnter = () => {
+    if (this.currentActionList !== null) return;
     this.actionsAppearedWatcher.observe(document.body, {
       subtree: true,
       childList: true,
@@ -42,13 +47,8 @@ class AudioInteractionWatcher {
     console.log('%cSTARTED OBSERVING FOR ACTIONS', 'color: green');
   };
 
-  private audioMouseLeave = (e: MouseEvent) => {
-    if (e.relatedTarget === this.interactedActionList) return;
-    this.cleanup();
-  };
-
   private moreButtonMouseLeave = () => {
-    if (this.interactedActionList !== null) return;
+    if (this.currentActionList !== null) return;
     this.actionsAppearedWatcher.disconnect();
     console.log('%cSTOPPED OBSERVING FOR ACTIONS', 'color: red');
   };
@@ -58,46 +58,46 @@ class AudioInteractionWatcher {
   };
 
   private actionListMouseLeave = (e: MouseEvent) => {
-    if ((this.interactedAudio as Element).contains(e.relatedTarget as Node)) return;
-    this.actionsDisappearedWatcher.observe(this.interactedActionList as Node, {
+    if ((this.currentAudio as HTMLElement).contains(e.relatedTarget as Node)) return;
+    this.actionsDisappearedWatcher.observe(this.currentActionList as HTMLElement, {
       attributeFilter: ['style'],
     });
   };
 
   cleanup = () => {
-    (this.interactedAudio as Element).removeEventListener('mouseleave', this.audioMouseLeave);
-    this.interactedAudio = null;
-    if (this.interactedActionList === null) return;
-    this.interactedActionList.parentNode?.removeChild(this.interactedActionList);
-    this.interactedActionList = null;
+    (this.currentAudio as HTMLElement).removeEventListener('mouseleave', this.audioMouseLeave);
+    this.currentAudio = null;
+    if (this.currentActionList === null) return;
+    this.currentActionList.parentNode?.removeChild(this.currentActionList);
+    this.currentActionList = null;
   };
 
-  audioOver = () => {
-    if (this.interactedActionList !== null) return;
+  onAudioOver = () => {
+    if (this.currentActionList !== null) return;
 
-    const actionMore = hasAppeared(
+    const moreButton = hasAppeared(
       'audio_row__action audio_row__action_more _audio_row__action_more'
     );
-    if (actionMore === null) return;
+    if (moreButton === null) return;
 
-    const relatedAudio = actionMore.closest('.audio_row') as HTMLElement;
-    if (this.interactedAudio === relatedAudio) return;
-    this.interactedAudio = relatedAudio;
+    const relatedAudio = moreButton.closest('.audio_row') as HTMLElement;
+    if (this.currentAudio === relatedAudio) return;
+    this.currentAudio = relatedAudio;
     const attrib = JSON.parse(relatedAudio.getAttribute('data-audio') as string);
 
-    actionMore.addEventListener('mouseenter', this.mouseEnterActionMore, {
+    moreButton.addEventListener('mouseenter', this.moreButtonMouseEnter, {
       once: true,
     });
-    actionMore.addEventListener('mouseleave', this.moreButtonMouseLeave);
+    moreButton.addEventListener('mouseleave', this.moreButtonMouseLeave);
     relatedAudio.addEventListener('mouseleave', this.audioMouseLeave);
     console.log('User is on ', attrib[4], ' - ', attrib[3]);
   };
 
-  actionsAppeared = () => {
+  onActionsAppeared = () => {
     const actionList = hasAppeared('eltt _audio_row__tt');
     if (actionList === null) return;
 
-    this.interactedActionList = actionList;
+    this.currentActionList = actionList;
     console.log('%cACTION LIST APPEARED', 'color: yellow');
     actionList.addEventListener('mouseleave', this.actionListMouseLeave);
     actionList.addEventListener('mouseenter', this.actionListMouseEnter);
@@ -111,8 +111,8 @@ class AudioInteractionWatcher {
 }
 
 const Watcher = new AudioInteractionWatcher();
-const waitForAudioOver = new MutationObserver(Watcher.audioOver);
-const waitForActionsOver = new MutationObserver(Watcher.actionsAppeared);
+const waitForAudioOver = new MutationObserver(Watcher.onAudioOver);
+const waitForActionsOver = new MutationObserver(Watcher.onActionsAppeared);
 const waitForDeletion = new MutationObserver(Watcher.cleanup);
 
 Watcher.audioOverWatcher = waitForAudioOver;
