@@ -24,18 +24,14 @@ class AudioInteractionWatcher {
   private interactedAudio: HTMLElement | null;
   private interactedActionList: HTMLElement | null;
 
-  private audioOverWatcher: MutationObserver;
-  private actionsAppearedWatcher: MutationObserver;
-  private actionsDisappearedWatcher: MutationObserver;
+  audioOverWatcher: MutationObserver;
+  actionsAppearedWatcher: MutationObserver;
+  actionsDisappearedWatcher: MutationObserver;
 
   constructor() {
     this.interactedActionList = null;
     this.interactedAudio = null;
   }
-
-  private cleanup = () => {
-    (this.interactedAudio as Element).removeEventListener('mouseleave', this.audioMouseLeave);
-  };
 
   private mouseEnterActionMore = () => {
     if (this.interactedActionList !== null) return;
@@ -49,10 +45,6 @@ class AudioInteractionWatcher {
   private audioMouseLeave = (e: MouseEvent) => {
     if (e.relatedTarget === this.interactedActionList) return;
     this.cleanup();
-    this.interactedAudio = null;
-    if (this.interactedActionList === null) return;
-    (this.interactedActionList.parentNode as Node).removeChild(this.interactedActionList);
-    this.interactedActionList = null;
   };
 
   private moreButtonMouseLeave = () => {
@@ -65,15 +57,6 @@ class AudioInteractionWatcher {
     this.actionsDisappearedWatcher.disconnect();
   };
 
-  actionsDisappeared = () => {
-    this.cleanup();
-    this.interactedAudio = null;
-    ((this.interactedActionList as Element).parentNode as Node).removeChild(
-      this.interactedActionList as Element
-    );
-    this.interactedActionList = null;
-  };
-
   private actionListMouseLeave = (e: MouseEvent) => {
     if ((this.interactedAudio as Element).contains(e.relatedTarget as Node)) return;
     this.actionsDisappearedWatcher.observe(this.interactedActionList as Node, {
@@ -81,17 +64,13 @@ class AudioInteractionWatcher {
     });
   };
 
-  setAudioOverWatcher(watcher: MutationObserver) {
-    this.audioOverWatcher = watcher;
-  }
-
-  setActionsAppearedWatcher(watcher: MutationObserver) {
-    this.actionsAppearedWatcher = watcher;
-  }
-
-  setActionsDisappearedWatcher(watcher: MutationObserver) {
-    this.actionsDisappearedWatcher = watcher;
-  }
+  cleanup = () => {
+    (this.interactedAudio as Element).removeEventListener('mouseleave', this.audioMouseLeave);
+    this.interactedAudio = null;
+    if (this.interactedActionList === null) return;
+    this.interactedActionList.parentNode?.removeChild(this.interactedActionList);
+    this.interactedActionList = null;
+  };
 
   audioOver = () => {
     if (this.interactedActionList !== null) return;
@@ -134,11 +113,11 @@ class AudioInteractionWatcher {
 const Watcher = new AudioInteractionWatcher();
 const waitForAudioOver = new MutationObserver(Watcher.audioOver);
 const waitForActionsOver = new MutationObserver(Watcher.actionsAppeared);
-const waitForDeletion = new MutationObserver(Watcher.actionsDisappeared);
+const waitForDeletion = new MutationObserver(Watcher.cleanup);
 
-Watcher.setAudioOverWatcher(waitForAudioOver);
-Watcher.setActionsAppearedWatcher(waitForActionsOver);
-Watcher.setActionsDisappearedWatcher(waitForDeletion);
+Watcher.audioOverWatcher = waitForAudioOver;
+Watcher.actionsAppearedWatcher = waitForActionsOver;
+Watcher.actionsDisappearedWatcher = waitForDeletion;
 
 Watcher.run();
 
