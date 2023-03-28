@@ -17,8 +17,6 @@ const createDownloadButton = (): HTMLButtonElement => {
   const btn = document.createElement('button');
   btn.classList.add(...UI_ELEMENTS.downloadButton.split(' '));
   btn.innerText = 'Скачать';
-  // TODO:
-  btn.addEventListener('click', () => {});
   return btn;
 };
 

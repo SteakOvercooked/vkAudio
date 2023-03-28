@@ -1,3 +1,5 @@
+import downloadAudio from './downloadAudio';
+
 import {
   hasAppeared,
   createDownloadButton,
@@ -84,6 +86,9 @@ class AudioInteractionWatcher {
     console.log('%cACTION LIST APPEARED', 'color: yellow');
 
     const downloadButton = createDownloadButton();
+    downloadButton.addEventListener('click', () => {
+      downloadAudio(this.currentAudio?.getAttribute('data-audio') as string);
+    });
     insertDownloadButton(downloadButton, actionList);
 
     actionList.addEventListener('mouseleave', this.actionListMouseLeave);
