@@ -1,6 +1,5 @@
 'use strict';
 var _r = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN0PQRSTUVWXYZO123456789+/=';
-var VK_ID = null;
 
 var o = {
   v: function reverseStr(strToReverse) {
@@ -53,19 +52,18 @@ var o = {
       outChance.join('')
     );
   },
-  i: function encodeStart(c, initlength) {
-    return o.s(c, initlength ^ VK_ID);
+  i: function encodeStart(c, initlength, vk_id) {
+    return o.s(c, initlength ^ vk_id);
   },
 };
 
-function getStreamLink(value, vk_id) {
+function getM3U8Url(apiUnavailableUrl, vk_id) {
   var original;
   var argumentsArray;
-  VK_ID = vk_id;
-  var data = value.split('?extra=')[1].split('#');
+  var data = apiUnavailableUrl.split('?extra=')[1].split('#');
   var str = '' === data[1] ? '' : a(data[1]);
   if (((data = a(data[0])), 'string' != typeof str || !data)) {
-    return value;
+    return apiUnavailableUrl;
   }
   var i = (str = str ? str.split(String.fromCharCode(9)) : []).length;
   for (; i--; ) {
@@ -73,14 +71,15 @@ function getStreamLink(value, vk_id) {
       ((original = (argumentsArray = str[i].split(String.fromCharCode(11))).splice(0, 1, data)[0]),
       !o[original])
     ) {
-      return value;
+      return apiUnavailableUrl;
     }
+    if (original === 'i') argumentsArray.push(vk_id);
     data = o[original].apply(null, argumentsArray);
   }
   if (data && 'http' === data.substr(0, 4)) {
     return data;
   }
-  return value;
+  return apiUnavailableUrl;
 }
 
 function a(text) {
@@ -100,4 +99,4 @@ function a(text) {
   return buffer;
 }
 
-export default getStreamLink;
+export default getM3U8Url;
