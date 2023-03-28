@@ -5,6 +5,7 @@
         "noImplicitAny": true,
         "strictNullChecks": true,
         "target": "ES5",
+        "lib": ["ES2015", "DOM"],
         "esModuleInterop": true,
         "removeComments": true,
         "types": ["chrome"]
