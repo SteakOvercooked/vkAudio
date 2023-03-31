@@ -57,3 +57,5 @@ export interface TransformData {
   vk_id: number;
   apiUnavailableUrl: string;
 }
+
+export type StreamComponent = 'playlist' | 'decrypt_key' | 'segment';
