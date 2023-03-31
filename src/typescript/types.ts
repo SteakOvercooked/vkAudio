@@ -59,3 +59,5 @@ export interface TransformData {
 }
 
 export type StreamComponent = 'playlist' | 'decrypt_key' | 'segment';
+
+export type SegmentsInfo = { isEncrypted: boolean; segIdx: number }[];
