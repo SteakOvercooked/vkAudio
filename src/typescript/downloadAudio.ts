@@ -2,6 +2,7 @@ import { AudioData, SegmentsInfo } from './types';
 import getM3U8Url from '../vk_source/getM3U8Url';
 import { getStreamComponent, getTransformData } from './api_calls';
 import { getSegmentsInfo } from './M3U8_parser';
+import { StreamConverter } from './stream_converter';
 
 const KEY_BYTE_LENGTH = 16;
 const CRYPT_ALGO = 'AES-CBC';
@@ -66,7 +67,14 @@ const downloadAudio = async (rawAudioData: string) => {
   const key = await getKey(streamUrl);
 
   const segments = await getSegments(streamUrl, key, segmentsInfo);
-  console.log(segments);
+
+  const converter = new StreamConverter(segments);
+  const audioBuffer = converter.convert();
+  const bl = new Blob([audioBuffer]);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(bl);
+  a.setAttribute('download', 'TEST.mp3');
+  a.click();
 };
 
 export default downloadAudio;
