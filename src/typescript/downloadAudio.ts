@@ -7,6 +7,13 @@ import { convert } from './stream_converter';
 const KEY_BYTE_LENGTH = 16;
 const CRYPT_ALGO = 'AES-CBC';
 
+function initDownload(audioBuffer: Int8Array, title: string) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([audioBuffer]));
+  a.setAttribute('download', title + '.mp3');
+  a.click();
+}
+
 async function getSegments(
   streamUrl: string,
   key: CryptoKey,
@@ -51,13 +58,18 @@ const getStreamUrl = (apiUnavailableUrl: string, vk_id: number): string => {
   return m3u8Url.substring(0, idx + 1);
 };
 
-const getAudioID = (rawAudioData: string): string => {
-  const audioData: AudioData = JSON.parse(rawAudioData);
-  return [audioData[1], audioData[0], audioData[24]].join('_');
-};
+const getAudioID = (audioData: AudioData) => [audioData[1], audioData[0], audioData[24]].join('_');
+
+function getAudioTitle(audioData: AudioData) {
+  const titleEncoded = audioData[4] + ' - ' + audioData[3];
+  const txt = document.createElement('textarea');
+  txt.innerHTML = titleEncoded;
+  return txt.value;
+}
 
 const downloadAudio = async (rawAudioData: string) => {
-  const audioID = getAudioID(rawAudioData);
+  const audioData: AudioData = JSON.parse(rawAudioData);
+  const audioID = getAudioID(audioData);
   const { vk_id, apiUnavailableUrl } = await getTransformData(audioID);
   const streamUrl = getStreamUrl(apiUnavailableUrl, vk_id);
 
@@ -69,11 +81,7 @@ const downloadAudio = async (rawAudioData: string) => {
   const segments = await getSegments(streamUrl, key, segmentsInfo);
 
   const audioBuffer = convert(segments);
-  const bl = new Blob([audioBuffer]);
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(bl);
-  a.setAttribute('download', 'TEST.mp3');
-  a.click();
+  initDownload(audioBuffer, getAudioTitle(audioData));
 };
 
 export default downloadAudio;
