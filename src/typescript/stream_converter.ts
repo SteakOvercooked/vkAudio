@@ -32,18 +32,18 @@ class ByteTransfer {
   private segView: DataView;
   private audioView: DataView;
 
-  private bytesTransfered: number;
+  private bytesTransferred: number;
 
   constructor(audioBuffer: ArrayBuffer) {
     this.audioView = new DataView(audioBuffer);
-    this.bytesTransfered = 0;
+    this.bytesTransferred = 0;
   }
 
   setSegment = (segment: ArrayBuffer) => {
     this.segView = new DataView(segment);
   };
 
-  getBytesTransferred = () => this.bytesTransfered;
+  getBytesTransferred = () => this.bytesTransferred;
 
   transfer = (packetIdx: number, payloadStart: number) => {
     const transferLength = PACKET_LENGTH - payloadStart;
@@ -52,16 +52,16 @@ class ByteTransfer {
     const bytesToNextOctet = transferLength % 8;
 
     for (let byteIdx = segByteOffset; byteIdx < segByteOffset + bytesToNextOctet; byteIdx++) {
-      this.audioView.setInt8(this.bytesTransfered, this.segView.getInt8(byteIdx));
-      this.bytesTransfered++;
+      this.audioView.setInt8(this.bytesTransferred, this.segView.getInt8(byteIdx));
+      this.bytesTransferred++;
     }
 
     for (let octetIdx = 0; octetIdx < octetsCount; octetIdx++) {
       this.audioView.setFloat64(
-        this.bytesTransfered,
+        this.bytesTransferred,
         this.segView.getFloat64(segByteOffset + bytesToNextOctet + octetIdx * 8)
       );
-      this.bytesTransfered += 8;
+      this.bytesTransferred += 8;
     }
   };
 }
@@ -142,55 +142,42 @@ class TSPacket {
   };
 }
 
-export class StreamConverter {
-  private segments: (ArrayBuffer | null)[];
-  private audioBuffer: ArrayBuffer;
-  private segView: DataView;
-  private byteTransfer: ByteTransfer;
+/** Returns an array where element at a given index is the index of the first
+ * byte of the payload of the packet at the same index
+ */
+function readSegmentPayload(segment: ArrayBuffer): Array<number> {
+  const packetCount = segment.byteLength / PACKET_LENGTH;
+  const payloadMap = new Array(packetCount);
+  let currentPacketIdx = 0;
 
-  private currentSegIdx: number;
-  private currentPacketIdx: number;
-  private segPacketCount: number;
-
-  constructor(segments: ArrayBuffer[]) {
-    this.segments = segments;
-    this.currentSegIdx = 0;
-    this.currentPacketIdx = 0;
-    this.segPacketCount =
-      (this.segments[this.currentSegIdx] as ArrayBuffer).byteLength / PACKET_LENGTH;
-    this.segView = new DataView(segments[this.currentSegIdx]);
-
-    const segmentsSize = segments.reduce((size, buffer) => size + buffer.byteLength, 0);
-    this.audioBuffer = new ArrayBuffer(segmentsSize);
-    this.byteTransfer = new ByteTransfer(this.audioBuffer);
+  while (currentPacketIdx < packetCount) {
+    const packet = new TSPacket(segment, currentPacketIdx);
+    payloadMap[currentPacketIdx] = packet.payload();
+    currentPacketIdx++;
   }
 
-  private nextSegment = () => {
-    this.segments[this.currentSegIdx] = null;
-    this.currentSegIdx++;
-    this.currentPacketIdx = 0;
-    if (this.currentSegIdx === this.segments.length) return;
-    this.segView = new DataView(this.segments[this.currentSegIdx] as ArrayBuffer);
-    this.segPacketCount =
-      (this.segments[this.currentSegIdx] as ArrayBuffer).byteLength / PACKET_LENGTH;
-  };
+  return payloadMap;
+}
 
-  convert = (): Int8Array => {
-    while (this.currentSegIdx < this.segments.length) {
-      this.byteTransfer.setSegment(this.segView.buffer);
+export function convert(segments: (ArrayBuffer | null)[]): Int8Array {
+  const bufferSize = segments.reduce(
+    (size, buffer) => size + (buffer as ArrayBuffer).byteLength,
+    0
+  );
+  const audioBuffer = new ArrayBuffer(bufferSize);
+  const byteTransfer = new ByteTransfer(audioBuffer);
+  let segIdx = 0;
 
-      while (this.currentPacketIdx < this.segPacketCount) {
-        const packet = new TSPacket(this.segView.buffer, this.currentPacketIdx);
-        const payloadStart = packet.payload();
+  while (segIdx < segments.length) {
+    const payloadMap = readSegmentPayload(segments[segIdx] as ArrayBuffer);
 
-        if (payloadStart !== -1) this.byteTransfer.transfer(this.currentPacketIdx, payloadStart);
+    byteTransfer.setSegment(segments[segIdx] as ArrayBuffer);
+    for (let packetIdx = 0; packetIdx < payloadMap.length; packetIdx++)
+      if (payloadMap[packetIdx] !== -1) byteTransfer.transfer(packetIdx, payloadMap[packetIdx]);
 
-        this.currentPacketIdx++;
-      }
+    segments[segIdx] = null;
+    segIdx++;
+  }
 
-      this.nextSegment();
-    }
-
-    return new Int8Array(this.audioBuffer, 0, this.byteTransfer.getBytesTransferred());
-  };
+  return new Int8Array(audioBuffer, 0, byteTransfer.getBytesTransferred());
 }
