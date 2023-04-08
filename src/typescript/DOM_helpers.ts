@@ -6,12 +6,12 @@ const UI_ELEMENTS = {
   addToPlaylistButton: 'audio_row__more_action audio_row__more_action_add_to_playlist',
 };
 
-const hasAppeared = (classList: string): HTMLElement | null => {
-  const element = document.getElementsByClassName(classList);
-  if (element.length === 0) return null;
+function hasAppeared(classList: string): HTMLElement[] | null {
+  const elements = document.getElementsByClassName(classList);
+  if (elements.length === 0) return null;
 
-  return element[0] as HTMLElement;
-};
+  return Array.from(elements) as HTMLElement[];
+}
 
 const createDownloadButton = (): HTMLButtonElement => {
   const btn = document.createElement('button');
@@ -21,8 +21,8 @@ const createDownloadButton = (): HTMLButtonElement => {
 };
 
 const insertDownloadButton = (btn: HTMLButtonElement, actionList: HTMLElement) => {
-  const actions = document.getElementsByClassName(UI_ELEMENTS.actions)[0];
-  const addToPlaylist = document.getElementsByClassName(UI_ELEMENTS.addToPlaylistButton)[0];
+  const actions = actionList.getElementsByClassName(UI_ELEMENTS.actions)[0];
+  const addToPlaylist = actions.getElementsByClassName(UI_ELEMENTS.addToPlaylistButton)[0];
   actions.insertBefore(btn, addToPlaylist);
 
   if (actionList.classList.contains('eltt_top')) {
