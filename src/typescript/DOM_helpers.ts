@@ -1,18 +1,17 @@
 import downloadAudio from './downloadAudio';
 import { AudioData } from './types';
 
-const UI_ELEMENTS = {
-  moreButton: 'audio_row__action audio_row__action_more _audio_row__action_more',
-  actionList: 'eltt _audio_row__tt',
-  actions: '_audio_row__more_actions audio_row__more_actions',
-  downloadButton: 'audio_row__more_action audio_row__more_action_download',
-  addToPlaylistButton: 'audio_row__more_action audio_row__more_action_add_to_playlist',
-  playButton: 'blind_label _audio_row__play_btn',
-};
+export const enum UI_Elements {
+  MoreButton = 'audio_row__action audio_row__action_more _audio_row__action_more',
+  ActionList = 'eltt _audio_row__tt',
+  Actions = '_audio_row__more_actions audio_row__more_actions',
+  DownloadButton = 'audio_row__more_action audio_row__more_action_download',
+  AddToPlaylistButton = 'audio_row__more_action audio_row__more_action_add_to_playlist',
+}
 
-function hasAppeared(classList: string, rootElement?: HTMLElement): HTMLElement[] | null {
+export function hasAppeared(element: UI_Elements, rootElement?: HTMLElement): HTMLElement[] | null {
   const elem = rootElement ?? document;
-  const elements = elem.getElementsByClassName(classList);
+  const elements = elem.getElementsByClassName(element);
   if (elements.length === 0) return null;
 
   return Array.from(elements) as HTMLElement[];
@@ -20,14 +19,14 @@ function hasAppeared(classList: string, rootElement?: HTMLElement): HTMLElement[
 
 function createButtonElement(): HTMLButtonElement {
   const btn = document.createElement('button');
-  btn.classList.add(...UI_ELEMENTS.downloadButton.split(' '));
+  btn.classList.add(...UI_Elements.DownloadButton.split(' '));
   btn.innerText = 'Скачать';
   return btn;
 }
 
 function insertButton(btn: HTMLButtonElement, actionList: HTMLElement) {
-  const actions = actionList.getElementsByClassName(UI_ELEMENTS.actions)[0];
-  const addToPlaylist = actions.getElementsByClassName(UI_ELEMENTS.addToPlaylistButton)[0];
+  const actions = actionList.getElementsByClassName(UI_Elements.Actions)[0];
+  const addToPlaylist = actions.getElementsByClassName(UI_Elements.AddToPlaylistButton)[0];
   actions.insertBefore(btn, addToPlaylist);
 
   if (actionList.classList.contains('eltt_top')) {
@@ -36,7 +35,7 @@ function insertButton(btn: HTMLButtonElement, actionList: HTMLElement) {
   }
 }
 
-function createDownloadButton(audio: HTMLElement, actionList: HTMLElement) {
+export function createDownloadButton(audio: HTMLElement, actionList: HTMLElement) {
   const button = createButtonElement();
   const audioData: AudioData = JSON.parse(audio.getAttribute('data-audio') as string);
 
@@ -44,5 +43,3 @@ function createDownloadButton(audio: HTMLElement, actionList: HTMLElement) {
 
   insertButton(button, actionList);
 }
-
-export { UI_ELEMENTS, hasAppeared, createDownloadButton };

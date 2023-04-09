@@ -1,7 +1,7 @@
 import { onInteractionOver } from './types';
 import InformativeMO from './InformativeMutationObserver';
 
-import { hasAppeared, createDownloadButton, UI_ELEMENTS } from './DOM_helpers';
+import { hasAppeared, createDownloadButton, UI_Elements } from './DOM_helpers';
 
 const ObserverConfig = {
   style: {
@@ -98,7 +98,7 @@ class Interaction {
   };
 
   onActionsAppeared = () => {
-    const actionLists = hasAppeared(UI_ELEMENTS.actionList);
+    const actionLists = hasAppeared(UI_Elements.ActionList);
     if (actionLists === null) return;
 
     this.appearanceObserver.disconnect();
@@ -115,7 +115,7 @@ class Interaction {
     this.isOnAudio ? this.disappearanceObserver.disconnect() : this.cleanup();
 
   onMoreButtonUpdated = () => {
-    const moreButtons = hasAppeared(UI_ELEMENTS.moreButton, this.audio);
+    const moreButtons = hasAppeared(UI_Elements.MoreButton, this.audio);
     if (moreButtons === null) return;
 
     this.updateObserver.disconnect();
@@ -153,7 +153,7 @@ class AudioInteractionWatcher {
   };
 
   onAudioOver = () => {
-    const moreButtons = hasAppeared(UI_ELEMENTS.moreButton);
+    const moreButtons = hasAppeared(UI_Elements.MoreButton);
     if (moreButtons === null) return;
 
     for (let i = 0; i < moreButtons.length; i++) {
