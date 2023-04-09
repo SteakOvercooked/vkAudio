@@ -2,7 +2,7 @@ import { AudioData, SegmentsInfo } from './types';
 import getM3U8Url from '../vk_source/getM3U8Url';
 import { getStreamComponent, getTransformData } from './api_calls';
 import { getSegmentsInfo } from './M3U8_parser';
-import { convert } from './stream_converter';
+import { convert } from './stream_converter/convert';
 
 const KEY_BYTE_LENGTH = 16;
 const CRYPT_ALGO = 'AES-CBC';
@@ -52,11 +52,11 @@ function getIV(segIdx: number): Int8Array {
   return iv;
 }
 
-const getStreamUrl = (apiUnavailableUrl: string, vk_id: number): string => {
+function getStreamUrl(apiUnavailableUrl: string, vk_id: number) {
   const m3u8Url = getM3U8Url(apiUnavailableUrl, vk_id);
   const idx = m3u8Url.lastIndexOf('/');
   return m3u8Url.substring(0, idx + 1);
-};
+}
 
 const getAudioID = (audioData: AudioData) => [audioData[1], audioData[0], audioData[24]].join('_');
 
@@ -67,7 +67,7 @@ function getAudioTitle(audioData: AudioData) {
   return txt.value;
 }
 
-const downloadAudio = async (audioData: AudioData) => {
+async function downloadAudio(audioData: AudioData) {
   const audioID = getAudioID(audioData);
   const { vk_id, apiUnavailableUrl } = await getTransformData(audioID);
   const streamUrl = getStreamUrl(apiUnavailableUrl, vk_id);
@@ -81,6 +81,6 @@ const downloadAudio = async (audioData: AudioData) => {
 
   const audioBuffer = convert(segments);
   initDownload(audioBuffer, getAudioTitle(audioData));
-};
+}
 
 export default downloadAudio;
