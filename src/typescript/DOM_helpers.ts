@@ -1,3 +1,6 @@
+import downloadAudio from './downloadAudio';
+import { AudioData } from './types';
+
 const UI_ELEMENTS = {
   moreButton: 'audio_row__action audio_row__action_more _audio_row__action_more',
   actionList: 'eltt _audio_row__tt',
@@ -15,14 +18,14 @@ function hasAppeared(classList: string, rootElement?: HTMLElement): HTMLElement[
   return Array.from(elements) as HTMLElement[];
 }
 
-const createDownloadButton = (): HTMLButtonElement => {
+function createButtonElement(): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.classList.add(...UI_ELEMENTS.downloadButton.split(' '));
   btn.innerText = 'Скачать';
   return btn;
-};
+}
 
-const insertDownloadButton = (btn: HTMLButtonElement, actionList: HTMLElement) => {
+function insertButton(btn: HTMLButtonElement, actionList: HTMLElement) {
   const actions = actionList.getElementsByClassName(UI_ELEMENTS.actions)[0];
   const addToPlaylist = actions.getElementsByClassName(UI_ELEMENTS.addToPlaylistButton)[0];
   actions.insertBefore(btn, addToPlaylist);
@@ -31,6 +34,15 @@ const insertDownloadButton = (btn: HTMLButtonElement, actionList: HTMLElement) =
     const top = parseInt(actionList.style.top);
     actionList.style.top = `${top - 32}px`;
   }
-};
+}
 
-export { UI_ELEMENTS, hasAppeared, createDownloadButton, insertDownloadButton };
+function createDownloadButton(audio: HTMLElement, actionList: HTMLElement) {
+  const button = createButtonElement();
+  const audioData: AudioData = JSON.parse(audio.getAttribute('data-audio') as string);
+
+  button.addEventListener('click', () => downloadAudio(audioData));
+
+  insertButton(button, actionList);
+}
+
+export { UI_ELEMENTS, hasAppeared, createDownloadButton };

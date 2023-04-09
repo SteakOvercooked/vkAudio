@@ -67,8 +67,7 @@ function getAudioTitle(audioData: AudioData) {
   return txt.value;
 }
 
-const downloadAudio = async (rawAudioData: string) => {
-  const audioData: AudioData = JSON.parse(rawAudioData);
+const downloadAudio = async (audioData: AudioData) => {
   const audioID = getAudioID(audioData);
   const { vk_id, apiUnavailableUrl } = await getTransformData(audioID);
   const streamUrl = getStreamUrl(apiUnavailableUrl, vk_id);
