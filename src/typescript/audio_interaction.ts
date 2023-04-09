@@ -12,6 +12,7 @@ type onInteractionOver = (audio: HTMLElement) => boolean;
 class Interaction {
   private actionList: HTMLElement | null;
   private audio: HTMLElement;
+  private moreButton: HTMLElement;
   private isInteracting: boolean;
   private isActionListWatched: boolean;
 
@@ -19,24 +20,27 @@ class Interaction {
 
   appearanceObserver: MutationObserver;
   disappearanceObserver: MutationObserver;
+  updateObserver: MutationObserver;
 
-  constructor(audioElement: HTMLElement, moreButton: HTMLElement, onOver: onInteractionOver) {
+  constructor(audio: HTMLElement, moreButton: HTMLElement, onOver: onInteractionOver) {
     this.actionList = null;
     this.isInteracting = true;
     this.isActionListWatched = false;
     this.onOver = onOver;
 
-    this.audio = audioElement;
+    this.audio = audio;
     this.audio.addEventListener('mouseenter', this.audioMouseEnter);
     this.audio.addEventListener('mouseleave', this.audioMouseLeave);
+    this.audio.addEventListener('click', this.audioClick);
 
+    this.moreButton = moreButton;
     moreButton.addEventListener('mouseenter', this.moreButtonMouseEnter);
     moreButton.addEventListener('mouseleave', this.moreButtonMouseLeave);
   }
 
   private audioMouseEnter = () => (this.isInteracting = true);
 
-  private audioMouseLeave = (e: MouseEvent) => {
+  private audioMouseLeave = () => {
     this.isInteracting = false;
     if (this.isActionListActive()) {
       if (this.isActionListWatched) return;
@@ -47,6 +51,10 @@ class Interaction {
     } else {
       this.cleanup();
     }
+  };
+
+  private audioClick = () => {
+    this.updateObserver.observe(this.audio, { subtree: true, childList: true });
   };
 
   private moreButtonMouseEnter = () => {
@@ -94,6 +102,7 @@ class Interaction {
     if (this.actionList !== null) this.actionList.parentNode?.removeChild(this.actionList);
     this.audio.removeEventListener('mouseenter', this.audioMouseEnter);
     this.audio.removeEventListener('mouseleave', this.audioMouseLeave);
+    this.audio.removeEventListener('click', this.audioClick);
   };
 
   onActionsAppeared = () => {
@@ -123,6 +132,20 @@ class Interaction {
       this.isActionListWatched = false;
     } else this.cleanup();
   };
+
+  onMoreButtonUpdated = () => {
+    const moreButtons = hasAppeared(UI_ELEMENTS.moreButton, this.audio);
+    if (moreButtons === null) return;
+
+    this.updateObserver.disconnect();
+
+    if (this.actionList !== null) this.actionList.parentNode?.removeChild(this.actionList);
+    this.actionList = null;
+    this.moreButton = moreButtons[0] as HTMLElement;
+
+    this.moreButton.addEventListener('mouseenter', this.moreButtonMouseEnter);
+    this.moreButton.addEventListener('mouseleave', this.moreButtonMouseLeave);
+  };
 }
 
 class AudioInteractionWatcher {
@@ -141,13 +164,14 @@ class AudioInteractionWatcher {
     if (moreButtons === null) return;
 
     for (let i = 0; i < moreButtons.length; i++) {
-      const relatedAudio = moreButtons[i].closest('.audio_row') as HTMLElement;
+      const audio = moreButtons[i].closest('.audio_row') as HTMLElement;
 
-      if (!this.interactedAudios.has(relatedAudio)) {
-        const interaction = new Interaction(relatedAudio, moreButtons[i], this.onInteractionOver);
+      if (!this.interactedAudios.has(audio)) {
+        const interaction = new Interaction(audio, moreButtons[i], this.onInteractionOver);
         interaction.appearanceObserver = new MutationObserver(interaction.onActionsAppeared);
         interaction.disappearanceObserver = new MutationObserver(interaction.onActionsDisappeared);
-        this.interactedAudios.set(relatedAudio, interaction);
+        interaction.updateObserver = new MutationObserver(interaction.onMoreButtonUpdated);
+        this.interactedAudios.set(audio, interaction);
       }
     }
   };

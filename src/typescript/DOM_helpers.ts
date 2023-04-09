@@ -4,10 +4,12 @@ const UI_ELEMENTS = {
   actions: '_audio_row__more_actions audio_row__more_actions',
   downloadButton: 'audio_row__more_action audio_row__more_action_download',
   addToPlaylistButton: 'audio_row__more_action audio_row__more_action_add_to_playlist',
+  playButton: 'blind_label _audio_row__play_btn',
 };
 
-function hasAppeared(classList: string): HTMLElement[] | null {
-  const elements = document.getElementsByClassName(classList);
+function hasAppeared(classList: string, rootElement?: HTMLElement): HTMLElement[] | null {
+  const elem = rootElement ?? document;
+  const elements = elem.getElementsByClassName(classList);
   if (elements.length === 0) return null;
 
   return Array.from(elements) as HTMLElement[];
