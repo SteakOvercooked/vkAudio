@@ -1,7 +1,6 @@
-import { onInteractionOver } from './types';
-import InformativeMO from './InformativeMutationObserver';
-
-import { hasAppeared, createDownloadButton, UI_Elements } from './DOM_helpers';
+import { onInteractionOver } from '../types';
+import InformativeMO from './informative_mutation_observer';
+import { hasAppeared, createDownloadButton, UI_Elements } from './interaction_utils';
 
 const ObserverConfig = {
   style: {

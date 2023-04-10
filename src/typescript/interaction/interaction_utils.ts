@@ -1,5 +1,5 @@
-import downloadAudio from './downloadAudio';
-import { AudioData } from './types';
+import downloadAudio from '../download_audio';
+import { AudioData } from '../types';
 
 export const enum UI_Elements {
   MoreButton = 'audio_row__action audio_row__action_more _audio_row__action_more',
