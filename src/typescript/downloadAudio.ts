@@ -19,22 +19,20 @@ async function getSegments(
   key: CryptoKey,
   segmentsInfo: SegmentsInfo
 ): Promise<ArrayBuffer[]> {
-  const segments = await Promise.all<Promise<ArrayBuffer>>(
-    segmentsInfo.map(async ({ isEncrypted, segIdx }) => {
-      const segment = await getStreamComponent(streamUrl, 'segment', segIdx);
+  const requests = segmentsInfo.map(async ({ isEncrypted, mediaSequence }) => {
+    let segment = await getStreamComponent(streamUrl, 'segment', mediaSequence);
+    if (isEncrypted) {
+      segment = await crypto.subtle.decrypt(
+        { name: CRYPT_ALGO, iv: getIV(mediaSequence) },
+        key,
+        segment
+      );
+    }
 
-      if (isEncrypted) {
-        const iv = getIV(segIdx);
-        const decryptedSegment = await crypto.subtle.decrypt(
-          { name: CRYPT_ALGO, iv: iv },
-          key,
-          segment
-        );
-        return decryptedSegment;
-      }
-      return segment;
-    })
-  );
+    return segment;
+  });
+
+  const segments = await Promise.all<Promise<ArrayBuffer>>(requests);
   return segments;
 }
 
@@ -45,9 +43,9 @@ async function getKey(streamUrl: string): Promise<CryptoKey> {
   return key;
 }
 
-function getIV(segIdx: number): Int8Array {
+function getIV(mediaSequence: number): Int8Array {
   const iv = new Int8Array(KEY_BYTE_LENGTH);
-  iv.set([segIdx], 15);
+  iv.set([mediaSequence], 15);
 
   return iv;
 }
@@ -55,6 +53,7 @@ function getIV(segIdx: number): Int8Array {
 function getStreamUrl(apiUnavailableUrl: string, vk_id: number) {
   const m3u8Url = getM3U8Url(apiUnavailableUrl, vk_id);
   const idx = m3u8Url.lastIndexOf('/');
+
   return m3u8Url.substring(0, idx + 1);
 }
 
@@ -64,6 +63,7 @@ function getAudioTitle(audioData: AudioData) {
   const titleEncoded = audioData[4] + ' - ' + audioData[3];
   const txt = document.createElement('textarea');
   txt.innerHTML = titleEncoded;
+
   return txt.value;
 }
 

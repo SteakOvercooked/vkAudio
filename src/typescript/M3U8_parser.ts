@@ -18,30 +18,29 @@ function isEncrypted(cryptKeyTag: string): boolean {
   return method !== 'NONE';
 }
 
-function getSegmentIdx(segmentName: string): number {
+function getMediaSequence(segmentName: string): number {
   return parseInt(segmentName.split('-')[1]);
 }
 
 export function getSegmentsInfo(m3u8: string): SegmentsInfo {
   const m3u8Formatted = m3u8.split('\n');
   let encrypted = false;
-  let lineIdx = 0;
+  let line = 0;
   const segmentsInfo = [];
 
   do {
-    if (m3u8Formatted[lineIdx].includes(TAG.cryptKey))
-      encrypted = isEncrypted(m3u8Formatted[lineIdx]);
+    if (m3u8Formatted[line].includes(TAG.cryptKey)) encrypted = isEncrypted(m3u8Formatted[line]);
 
-    lineIdx++;
+    line++;
 
-    if (m3u8Formatted[lineIdx].includes(TAG.segInfo)) {
+    if (m3u8Formatted[line].includes(TAG.segInfo)) {
       segmentsInfo.push({
         isEncrypted: encrypted,
-        segIdx: getSegmentIdx(m3u8Formatted[lineIdx + 1]),
+        mediaSequence: getMediaSequence(m3u8Formatted[line + 1]),
       });
-      lineIdx++;
+      line++;
     }
-  } while (!m3u8Formatted[lineIdx].includes(TAG.endList));
+  } while (!m3u8Formatted[line].includes(TAG.endList));
 
   return segmentsInfo;
 }

@@ -10,18 +10,18 @@ export async function getStreamComponent(
 export async function getStreamComponent(
   streamUrl: string,
   component: 'segment',
-  seg_idx: number
+  mediaSequence: number
 ): Promise<ArrayBuffer>;
 
 export async function getStreamComponent(
   streamUrl: string,
   component: StreamComponent,
-  seg_idx?: number
+  mediaSequence?: number
 ): Promise<ArrayBuffer | string> {
   const componentMap = new Map([
     ['playlist', 'index.m3u8'],
     ['decrypt_key', 'key.pub'],
-    ['segment', `seg-${seg_idx}-a1.ts`],
+    ['segment', `seg-${mediaSequence}-a1.ts`],
   ]);
   const response = await fetch(streamUrl + componentMap.get(component));
 
