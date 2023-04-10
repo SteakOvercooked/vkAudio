@@ -10,8 +10,12 @@ function readSegmentPayload(segment: ArrayBuffer): Array<number> {
   let currentPacket = 0;
 
   while (currentPacket < packetCount) {
-    const tsPacket = new TSPacket(segment, currentPacket);
-    payloadMap[currentPacket] = tsPacket.payload();
+    try {
+      const tsPacket = new TSPacket(segment, currentPacket);
+      payloadMap[currentPacket] = tsPacket.payload();
+    } catch (err) {
+      throw new Error(err);
+    }
     currentPacket++;
   }
 
@@ -28,7 +32,12 @@ export function convert(segments: (ArrayBuffer | null)[]): Int8Array {
   let currentSegment = 0;
 
   while (currentSegment < segments.length) {
-    const payloadMap = readSegmentPayload(segments[currentSegment] as ArrayBuffer);
+    let payloadMap: number[];
+    try {
+      payloadMap = readSegmentPayload(segments[currentSegment] as ArrayBuffer);
+    } catch (err) {
+      throw new Error(err);
+    }
 
     byteTransfer.setSegment(segments[currentSegment] as ArrayBuffer);
     for (let packet = 0; packet < payloadMap.length; packet++)

@@ -1,4 +1,4 @@
-import { AudioData, SegmentsInfo } from './types';
+import { AudioData, SegmentsInfo, TransformData } from './types';
 import getM3U8Url from '../vk_source/getM3U8Url';
 import { getStreamComponent, getTransformData } from './api_calls';
 import { getSegmentsInfo } from './M3U8_parser';
@@ -24,7 +24,14 @@ async function getSegments(
   let progress = 30;
   const step = Math.trunc(50 / segmentsInfo.length);
   const requests = segmentsInfo.map(async ({ isEncrypted, mediaSequence }) => {
-    let segment = await getStreamComponent(streamUrl, 'segment', mediaSequence);
+    let segment: ArrayBuffer;
+    try {
+      segment = await getStreamComponent(streamUrl, 'segment', mediaSequence);
+    } catch (err) {
+      loadingBar.throw();
+      throw new Error(err);
+    }
+
     if (isEncrypted) {
       segment = await crypto.subtle.decrypt(
         { name: CRYPT_ALGO, iv: getIV(mediaSequence) },
@@ -43,9 +50,14 @@ async function getSegments(
 }
 
 async function getKey(streamUrl: string): Promise<CryptoKey> {
-  const key_bytes = await getStreamComponent(streamUrl, 'decrypt_key');
-  const key = await crypto.subtle.importKey('raw', key_bytes, CRYPT_ALGO, false, ['decrypt']);
+  let key_bytes: ArrayBuffer;
+  try {
+    key_bytes = await getStreamComponent(streamUrl, 'decrypt_key');
+  } catch (err) {
+    throw new Error(err);
+  }
 
+  const key = await crypto.subtle.importKey('raw', key_bytes, CRYPT_ALGO, false, ['decrypt']);
   return key;
 }
 
@@ -56,7 +68,8 @@ function getIV(mediaSequence: number): Int8Array {
   return iv;
 }
 
-function getStreamUrl(apiUnavailableUrl: string, vk_id: number) {
+function getStreamUrl(transformData: TransformData) {
+  const { vk_id, apiUnavailableUrl } = transformData;
   const m3u8Url = getM3U8Url(apiUnavailableUrl, vk_id);
   const idx = m3u8Url.lastIndexOf('/');
 
@@ -78,21 +91,54 @@ async function downloadAudio(audio: HTMLElement) {
   const loadingBar = new LoadingBar(audio);
 
   const audioID = getAudioID(audioData);
-  const { vk_id, apiUnavailableUrl } = await getTransformData(audioID);
-  loadingBar.setProgress(10);
-  const streamUrl = getStreamUrl(apiUnavailableUrl, vk_id);
 
-  const playlist = await getStreamComponent(streamUrl, 'playlist');
-  loadingBar.setProgress(20);
+  let transformData: TransformData;
+  try {
+    transformData = await getTransformData(audioID);
+    loadingBar.setProgress(10);
+  } catch (err) {
+    loadingBar.throw();
+    return;
+  }
+
+  const streamUrl = getStreamUrl(transformData);
+
+  let playlist: string;
+  try {
+    playlist = await getStreamComponent(streamUrl, 'playlist');
+    loadingBar.setProgress(20);
+  } catch (err) {
+    loadingBar.throw();
+    return;
+  }
+
   const segmentsInfo = getSegmentsInfo(playlist);
 
-  const key = await getKey(streamUrl);
-  loadingBar.setProgress(30);
+  let key: CryptoKey;
+  try {
+    key = await getKey(streamUrl);
+    loadingBar.setProgress(30);
+  } catch (err) {
+    loadingBar.throw();
+    return;
+  }
 
-  const segments = await getSegments(streamUrl, key, segmentsInfo, loadingBar);
+  let segments: ArrayBuffer[];
+  try {
+    segments = await getSegments(streamUrl, key, segmentsInfo, loadingBar);
+  } catch (err) {
+    return;
+  }
 
-  const audioBuffer = convert(segments);
-  loadingBar.setProgress(100);
+  let audioBuffer: Int8Array;
+  try {
+    audioBuffer = convert(segments);
+    loadingBar.setProgress(100);
+  } catch (err) {
+    loadingBar.throw();
+    return;
+  }
+
   initDownload(audioBuffer, getAudioTitle(audioData));
 }
 

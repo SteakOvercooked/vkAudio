@@ -1,5 +1,6 @@
 $loader-background: #edeef0;
 $loader-progress: #447bba;
+$loader-progress-error: #ba4444;
 
 .vk_audio__bar_outer {
     transition: opacity .2s;
@@ -18,10 +19,41 @@ $loader-progress: #447bba;
 .vk_audio__bar_inner {
     height: 2px;
     width: 0;
-    transition: width .2s;
+    transition-duration: width .2s;
     background-color: $loader-progress;
 }
 
 .vk_audio__loading {
     transition: height .2s;
+}
+
+@keyframes shake {
+    30% {
+        transform: translate(-9px, -7px);
+    }
+
+    50% {
+        transform: translate(7px, 5px);
+    }
+
+    65% {
+        transform: translate(-5px, 4px);
+    }
+
+    80% {
+        transform: translate(3px, 1px);
+    }
+
+    100% {
+        transform: translate(0px, 0px);
+    }
+}
+
+.vk_audio__error {
+    animation: shake .2s normal;
+}
+
+.vk_audio__error .vk_audio__bar_inner {
+    transition: color .2s;
+    background-color: $loader-progress-error;
 }

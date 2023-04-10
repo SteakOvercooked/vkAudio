@@ -1,6 +1,27 @@
 import { ReloadAudiosResponse, TransformData, StreamComponent } from './types';
 
 const GET_AUDIO_DATA = 'al_audio.php?act=reload_audios';
+const REQUEST_EXPIRATION_TIME = 10000;
+
+async function timedFetch(...args: Parameters<typeof fetch>): Promise<Response> {
+  const controller = new AbortController();
+  args[1] = Object.assign(args[1] ?? {}, { signal: controller.signal });
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, REQUEST_EXPIRATION_TIME);
+
+  try {
+    const response = await fetch(...args);
+    clearTimeout(timeout);
+
+    if (response.ok) return response;
+
+    throw new Error(response.statusText);
+  } catch (err) {
+    throw new Error(err);
+  }
+}
 
 export async function getStreamComponent(streamUrl: string, component: 'playlist'): Promise<string>;
 export async function getStreamComponent(
@@ -23,14 +44,12 @@ export async function getStreamComponent(
     ['decrypt_key', 'key.pub'],
     ['segment', `seg-${mediaSequence}-a1.ts`],
   ]);
-  const response = await fetch(streamUrl + componentMap.get(component));
-
-  if (response.ok) {
-    if (component === 'playlist') return response.text();
-    return response.arrayBuffer();
+  try {
+    const response = await timedFetch(streamUrl + componentMap.get(component));
+    return component === 'playlist' ? response.text() : response.arrayBuffer();
+  } catch (err) {
+    throw new Error(err);
   }
-
-  throw new Error(response.statusText);
 }
 
 export async function getTransformData(audioID: string): Promise<TransformData> {
@@ -38,21 +57,21 @@ export async function getTransformData(audioID: string): Promise<TransformData> 
   requestBody.set('al', '1');
   requestBody.set('audio_ids', audioID);
 
-  const response = await fetch(GET_AUDIO_DATA, {
-    method: 'POST',
-    body: requestBody,
-    headers: {
-      'x-requested-with': 'XMLHttpRequest',
-    },
-  });
-
-  if (response.ok) {
+  try {
+    const response = await timedFetch(GET_AUDIO_DATA, {
+      method: 'POST',
+      body: requestBody,
+      headers: {
+        'x-requested-with': 'XMLHttpRequest',
+      },
+    });
     const result: ReloadAudiosResponse = await response.json();
+
     return {
       vk_id: result.payload[1][0][0][15].vk_id,
       apiUnavailableUrl: result.payload[1][0][0][2],
     };
+  } catch (err) {
+    throw new Error(err);
   }
-
-  throw new Error(response.statusText);
 }

@@ -10,15 +10,16 @@ const enum LoadingBars {
 
 const ANIMATION_DURATION = 200;
 
-// 4 steps - al_audio, m3u8, key, segments
-
 class LoadingBar {
   private audio: HTMLElement;
   private content: HTMLElement;
   private barOuter: HTMLElement;
   private barInner: HTMLElement;
 
+  private error: boolean;
+
   constructor(audio: HTMLElement) {
+    this.error = false;
     this.audio = audio;
     this.audio.classList.add(LoadState.Loading);
     this.audio.style.height = `${this.audio.clientHeight + 2}px`;
@@ -55,11 +56,19 @@ class LoadingBar {
   };
 
   setProgress = (percentage: number) => {
+    if (this.error) return;
+
     this.barInner.style.width = `${(this.barOuter.clientWidth * percentage) / 100}px`;
     if (percentage === 100)
       setTimeout(() => {
         this.unmount();
       }, ANIMATION_DURATION);
+  };
+
+  throw = () => {
+    this.error = true;
+    this.barOuter.classList.add(LoadState.Error);
+    setTimeout(this.unmount, ANIMATION_DURATION * 10);
   };
 }
 
