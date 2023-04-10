@@ -3,6 +3,7 @@ import getM3U8Url from '../vk_source/getM3U8Url';
 import { getStreamComponent, getTransformData } from './api_calls';
 import { getSegmentsInfo } from './M3U8_parser';
 import { convert } from './stream_converter/convert';
+import LoadingBar from './loading_bar';
 
 const KEY_BYTE_LENGTH = 16;
 const CRYPT_ALGO = 'AES-CBC';
@@ -17,8 +18,11 @@ function initDownload(audioBuffer: Int8Array, title: string) {
 async function getSegments(
   streamUrl: string,
   key: CryptoKey,
-  segmentsInfo: SegmentsInfo
+  segmentsInfo: SegmentsInfo,
+  loadingBar: LoadingBar
 ): Promise<ArrayBuffer[]> {
+  let progress = 30;
+  const step = Math.trunc(50 / segmentsInfo.length);
   const requests = segmentsInfo.map(async ({ isEncrypted, mediaSequence }) => {
     let segment = await getStreamComponent(streamUrl, 'segment', mediaSequence);
     if (isEncrypted) {
@@ -28,6 +32,8 @@ async function getSegments(
         segment
       );
     }
+    progress += step;
+    loadingBar.setProgress(progress);
 
     return segment;
   });
@@ -67,19 +73,26 @@ function getAudioTitle(audioData: AudioData) {
   return txt.value;
 }
 
-async function downloadAudio(audioData: AudioData) {
+async function downloadAudio(audio: HTMLElement) {
+  const audioData: AudioData = JSON.parse(audio.getAttribute('data-audio') as string);
+  const loadingBar = new LoadingBar(audio);
+
   const audioID = getAudioID(audioData);
   const { vk_id, apiUnavailableUrl } = await getTransformData(audioID);
+  loadingBar.setProgress(10);
   const streamUrl = getStreamUrl(apiUnavailableUrl, vk_id);
 
   const playlist = await getStreamComponent(streamUrl, 'playlist');
+  loadingBar.setProgress(20);
   const segmentsInfo = getSegmentsInfo(playlist);
 
   const key = await getKey(streamUrl);
+  loadingBar.setProgress(30);
 
-  const segments = await getSegments(streamUrl, key, segmentsInfo);
+  const segments = await getSegments(streamUrl, key, segmentsInfo, loadingBar);
 
   const audioBuffer = convert(segments);
+  loadingBar.setProgress(100);
   initDownload(audioBuffer, getAudioTitle(audioData));
 }
 

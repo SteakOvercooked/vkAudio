@@ -1,13 +1,5 @@
 import downloadAudio from '../download_audio';
-import { AudioData } from '../types';
-
-export const enum UI_Elements {
-  MoreButton = 'audio_row__action audio_row__action_more _audio_row__action_more',
-  ActionList = 'eltt _audio_row__tt',
-  Actions = '_audio_row__more_actions audio_row__more_actions',
-  DownloadButton = 'audio_row__more_action audio_row__more_action_download',
-  AddToPlaylistButton = 'audio_row__more_action audio_row__more_action_add_to_playlist',
-}
+import { UI_Elements } from '../types';
 
 export function hasAppeared(element: UI_Elements, rootElement?: HTMLElement): HTMLElement[] | null {
   const elem = rootElement ?? document;
@@ -37,9 +29,6 @@ function insertButton(btn: HTMLButtonElement, actionList: HTMLElement) {
 
 export function createDownloadButton(audio: HTMLElement, actionList: HTMLElement) {
   const button = createButtonElement();
-  const audioData: AudioData = JSON.parse(audio.getAttribute('data-audio') as string);
-
-  button.addEventListener('click', () => downloadAudio(audioData));
-
+  button.addEventListener('click', () => downloadAudio(audio));
   insertButton(button, actionList);
 }

@@ -1,43 +1,27 @@
-@use "animations";
+$loader-background: #edeef0;
+$loader-progress: #447bba;
 
-.notification__vk_audio {
-
-    position: fixed;
-    background-color: white;
-    overflow-y: hidden;
-    left: 3%;
-    z-index: 10000;
-    width: 120px;
-    height: 50px;
-    border-radius: 5px;
-    box-shadow: 0 0 10px 0px rgba(0, 0, 0, 0.5);
-
-    svg {
-        display: block;
-        margin: 7px auto 250px auto;
-        width: 36px;
-        height: 36px;
-    }
-
-    svg.vk_audio__error {
-        animation-name: showError;
-        animation-duration: 0.8s;
-        animation-fill-mode: forwards;
-    }
+.vk_audio__bar_outer {
+    transition: opacity .2s;
+    height: 2px;
+    position: absolute;
+    width: calc(100% - 16px);
+    left: 4px;
+    opacity: 1;
+    background-color: $loader-background;
 }
 
-.notification__vk_audio.hidden {
-    transform: translateX(-1000px);
+.vk_audio__bar_outer.hidden {
+    opacity: 0;
 }
 
-.notification__vk_audio.removing {
-    animation-name: hidePopup;
-    animation-fill-mode: forwards;
-    animation-duration: 0.8s;
+.vk_audio__bar_inner {
+    height: 2px;
+    width: 0;
+    transition: width .2s;
+    background-color: $loader-progress;
 }
 
-.notification__vk_audio.showing {
-    animation-name: showPopup;
-    animation-duration: 0.8s;
-    animation-fill-mode: forwards;
+.vk_audio__loading {
+    transition: height .2s;
 }
