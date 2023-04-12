@@ -13,13 +13,14 @@ $loader-progress-error: #ba4444;
 }
 
 .vk_audio__bar_outer.hidden {
+    transition: opacity .2s;
     opacity: 0;
 }
 
 .vk_audio__bar_inner {
     height: 2px;
     width: 0;
-    transition-duration: width .2s;
+    transition: width .2s;
     background-color: $loader-progress;
 }
 

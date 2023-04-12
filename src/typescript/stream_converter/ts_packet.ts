@@ -75,7 +75,7 @@ export class TSPacket {
     }
   };
 
-  /** Returns a number - byte index representing the beginning of payload*/
+  /** Returns a byte index representing the beginning of payload*/
   payload = (): number => {
     if (!this.isAudioPacket()) return -1;
 

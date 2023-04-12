@@ -1,12 +1,12 @@
 import { SegmentsInfo } from './types';
 
-const TAG = {
-  cryptKey: '#EXT-X-KEY',
-  segInfo: '#EXTINF',
-  endList: '#EXT-X-ENDLIST',
-};
+const enum Tag {
+  CryptKey = '#EXT-X-KEY',
+  SegInfo = '#EXTINF',
+  EndList = '#EXT-X-ENDLIST',
+}
 
-function isEncrypted(cryptKeyTag: string): boolean {
+function isEncrypted(cryptKeyTag: string) {
   const begin = cryptKeyTag.indexOf('METHOD');
 
   let end = cryptKeyTag.indexOf(',');
@@ -18,7 +18,7 @@ function isEncrypted(cryptKeyTag: string): boolean {
   return method !== 'NONE';
 }
 
-function getMediaSequence(segmentName: string): number {
+function getMediaSequence(segmentName: string) {
   return parseInt(segmentName.split('-')[1]);
 }
 
@@ -29,18 +29,18 @@ export function getSegmentsInfo(m3u8: string): SegmentsInfo {
   const segmentsInfo = [];
 
   do {
-    if (m3u8Formatted[line].includes(TAG.cryptKey)) encrypted = isEncrypted(m3u8Formatted[line]);
+    if (m3u8Formatted[line].includes(Tag.CryptKey)) encrypted = isEncrypted(m3u8Formatted[line]);
 
     line++;
 
-    if (m3u8Formatted[line].includes(TAG.segInfo)) {
+    if (m3u8Formatted[line].includes(Tag.SegInfo)) {
       segmentsInfo.push({
         isEncrypted: encrypted,
         mediaSequence: getMediaSequence(m3u8Formatted[line + 1]),
       });
       line++;
     }
-  } while (!m3u8Formatted[line].includes(TAG.endList));
+  } while (!m3u8Formatted[line].includes(Tag.EndList));
 
   return segmentsInfo;
 }

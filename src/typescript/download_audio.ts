@@ -1,6 +1,6 @@
 import { AudioData, SegmentsInfo, TransformData } from './types';
 import getM3U8Url from '../vk_source/getM3U8Url';
-import { getStreamComponent, getTransformData } from './api_calls';
+import { getStreamComponent, getTransformData } from './api/api_calls';
 import { getSegmentsInfo } from './M3U8_parser';
 import { convert } from './stream_converter/convert';
 import LoadingBar from './loading_bar';
@@ -28,8 +28,7 @@ async function getSegments(
     try {
       segment = await getStreamComponent(streamUrl, 'segment', mediaSequence);
     } catch (err) {
-      loadingBar.throw();
-      throw new Error(err);
+      throw err;
     }
 
     if (isEncrypted) {
@@ -54,7 +53,7 @@ async function getKey(streamUrl: string): Promise<CryptoKey> {
   try {
     key_bytes = await getStreamComponent(streamUrl, 'decrypt_key');
   } catch (err) {
-    throw new Error(err);
+    throw err;
   }
 
   const key = await crypto.subtle.importKey('raw', key_bytes, CRYPT_ALGO, false, ['decrypt']);
@@ -127,6 +126,7 @@ async function downloadAudio(audio: HTMLElement) {
   try {
     segments = await getSegments(streamUrl, key, segmentsInfo, loadingBar);
   } catch (err) {
+    loadingBar.throw();
     return;
   }
 

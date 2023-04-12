@@ -1,27 +1,7 @@
-import { ReloadAudiosResponse, TransformData, StreamComponent } from './types';
+import { ReloadAudiosResponse, TransformData, StreamComponent } from '../types';
+import { timedFetch, TimedResponse } from './api_utils';
 
 const GET_AUDIO_DATA = 'al_audio.php?act=reload_audios';
-const REQUEST_EXPIRATION_TIME = 10000;
-
-async function timedFetch(...args: Parameters<typeof fetch>): Promise<Response> {
-  const controller = new AbortController();
-  args[1] = Object.assign(args[1] ?? {}, { signal: controller.signal });
-
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, REQUEST_EXPIRATION_TIME);
-
-  try {
-    const response = await fetch(...args);
-    clearTimeout(timeout);
-
-    if (response.ok) return response;
-
-    throw new Error(response.statusText);
-  } catch (err) {
-    throw new Error(err);
-  }
-}
 
 export async function getStreamComponent(streamUrl: string, component: 'playlist'): Promise<string>;
 export async function getStreamComponent(
@@ -44,12 +24,15 @@ export async function getStreamComponent(
     ['decrypt_key', 'key.pub'],
     ['segment', `seg-${mediaSequence}-a1.ts`],
   ]);
+
+  let response: TimedResponse;
   try {
-    const response = await timedFetch(streamUrl + componentMap.get(component));
-    return component === 'playlist' ? response.text() : response.arrayBuffer();
+    response = new TimedResponse(...(await timedFetch(streamUrl + componentMap.get(component))));
   } catch (err) {
-    throw new Error(err);
+    throw err;
   }
+
+  return component === 'playlist' ? response.text() : response.arrayBuffer();
 }
 
 export async function getTransformData(audioID: string): Promise<TransformData> {
@@ -58,13 +41,15 @@ export async function getTransformData(audioID: string): Promise<TransformData> 
   requestBody.set('audio_ids', audioID);
 
   try {
-    const response = await timedFetch(GET_AUDIO_DATA, {
-      method: 'POST',
-      body: requestBody,
-      headers: {
-        'x-requested-with': 'XMLHttpRequest',
-      },
-    });
+    const response = new TimedResponse(
+      ...(await timedFetch(GET_AUDIO_DATA, {
+        method: 'POST',
+        body: requestBody,
+        headers: {
+          'x-requested-with': 'XMLHttpRequest',
+        },
+      }))
+    );
     const result: ReloadAudiosResponse = await response.json();
 
     return {
@@ -72,6 +57,6 @@ export async function getTransformData(audioID: string): Promise<TransformData> 
       apiUnavailableUrl: result.payload[1][0][0][2],
     };
   } catch (err) {
-    throw new Error(err);
+    throw err;
   }
 }

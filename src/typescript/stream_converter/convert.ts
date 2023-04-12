@@ -1,10 +1,10 @@
 import { TSPacket, PACKET_LENGTH } from './ts_packet';
 import { ByteTransfer } from './byte_transfer';
 
-/** Returns an array where element at a given index is the index of the first
- * byte of the payload of the packet at the same index
+/** Returns an array where indices correspond to packet indices in segment
+ * and a value is the first byte of a packet's payload
  */
-function readSegmentPayload(segment: ArrayBuffer): Array<number> {
+function readSegmentPayload(segment: ArrayBuffer): number[] {
   const packetCount = segment.byteLength / PACKET_LENGTH;
   const payloadMap = new Array(packetCount);
   let currentPacket = 0;
@@ -22,6 +22,7 @@ function readSegmentPayload(segment: ArrayBuffer): Array<number> {
   return payloadMap;
 }
 
+/** Transfers bytes from segment buffers to audio buffer */
 export function convert(segments: (ArrayBuffer | null)[]): Int8Array {
   const bufferSize = segments.reduce(
     (size, buffer) => size + (buffer as ArrayBuffer).byteLength,
