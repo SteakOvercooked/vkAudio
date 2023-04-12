@@ -1,6 +1,5 @@
-import { AudioData, SegmentsInfo, TransformData } from './types';
-import getM3U8Url from '../vk_source/getM3U8Url';
-import { getStreamComponent, getTransformData } from './api/api_calls';
+import { AudioData, SegmentsInfo } from './types';
+import { AudioReceiver } from './api/audio_receiver';
 import { getSegmentsInfo } from './M3U8_parser';
 import { convert } from './stream_converter/convert';
 import LoadingBar from './loading_bar';
@@ -16,7 +15,7 @@ function initDownload(audioBuffer: Int8Array, title: string) {
 }
 
 async function getSegments(
-  streamUrl: string,
+  receiver: AudioReceiver,
   key: CryptoKey,
   segmentsInfo: SegmentsInfo,
   loadingBar: LoadingBar
@@ -24,12 +23,7 @@ async function getSegments(
   let progress = 30;
   const step = Math.trunc(50 / segmentsInfo.length);
   const requests = segmentsInfo.map(async ({ isEncrypted, mediaSequence }) => {
-    let segment: ArrayBuffer;
-    try {
-      segment = await getStreamComponent(streamUrl, 'segment', mediaSequence);
-    } catch (err) {
-      throw err;
-    }
+    let segment = await receiver.getStreamComponent('segment', mediaSequence);
 
     if (isEncrypted) {
       segment = await crypto.subtle.decrypt(
@@ -44,19 +38,13 @@ async function getSegments(
     return segment;
   });
 
-  const segments = await Promise.all<Promise<ArrayBuffer>>(requests);
-  return segments;
+  return await Promise.all(requests);
 }
 
-async function getKey(streamUrl: string): Promise<CryptoKey> {
-  let key_bytes: ArrayBuffer;
-  try {
-    key_bytes = await getStreamComponent(streamUrl, 'decrypt_key');
-  } catch (err) {
-    throw err;
-  }
-
+async function getKey(receiver: AudioReceiver): Promise<CryptoKey> {
+  const key_bytes = await receiver.getStreamComponent('decrypt_key');
   const key = await crypto.subtle.importKey('raw', key_bytes, CRYPT_ALGO, false, ['decrypt']);
+
   return key;
 }
 
@@ -65,14 +53,6 @@ function getIV(mediaSequence: number): Int8Array {
   iv.set([mediaSequence], 15);
 
   return iv;
-}
-
-function getStreamUrl(transformData: TransformData) {
-  const { vk_id, apiUnavailableUrl } = transformData;
-  const m3u8Url = getM3U8Url(apiUnavailableUrl, vk_id);
-  const idx = m3u8Url.lastIndexOf('/');
-
-  return m3u8Url.substring(0, idx + 1);
 }
 
 const getAudioID = (audioData: AudioData) => [audioData[1], audioData[0], audioData[24]].join('_');
@@ -86,26 +66,33 @@ function getAudioTitle(audioData: AudioData) {
 }
 
 async function downloadAudio(audio: HTMLElement) {
-  const audioData: AudioData = JSON.parse(audio.getAttribute('data-audio') as string);
+  const receiver = new AudioReceiver();
   const loadingBar = new LoadingBar(audio);
+  const audioData: AudioData = JSON.parse(audio.getAttribute('data-audio') as string);
 
   const audioID = getAudioID(audioData);
 
-  let transformData: TransformData;
   try {
-    transformData = await getTransformData(audioID);
+    await receiver.fetchStreamUrl(audioID);
     loadingBar.setProgress(10);
   } catch (err) {
     loadingBar.throw();
     return;
   }
 
-  const streamUrl = getStreamUrl(transformData);
-
   let playlist: string;
   try {
-    playlist = await getStreamComponent(streamUrl, 'playlist');
+    playlist = await receiver.getStreamComponent('playlist');
     loadingBar.setProgress(20);
+  } catch (err) {
+    loadingBar.throw();
+    return;
+  }
+
+  let key: CryptoKey;
+  try {
+    key = await getKey(receiver);
+    loadingBar.setProgress(30);
   } catch (err) {
     loadingBar.throw();
     return;
@@ -113,18 +100,9 @@ async function downloadAudio(audio: HTMLElement) {
 
   const segmentsInfo = getSegmentsInfo(playlist);
 
-  let key: CryptoKey;
-  try {
-    key = await getKey(streamUrl);
-    loadingBar.setProgress(30);
-  } catch (err) {
-    loadingBar.throw();
-    return;
-  }
-
   let segments: ArrayBuffer[];
   try {
-    segments = await getSegments(streamUrl, key, segmentsInfo, loadingBar);
+    segments = await getSegments(receiver, key, segmentsInfo, loadingBar);
   } catch (err) {
     loadingBar.throw();
     return;

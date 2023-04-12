@@ -71,5 +71,3 @@ export const enum UI_Elements {
   DownloadButton = 'audio_row__more_action audio_row__more_action_download',
   AddToPlaylistButton = 'audio_row__more_action audio_row__more_action_add_to_playlist',
 }
-
-export type AsyncFunc = (...args: unknown[]) => Promise<unknown>;
