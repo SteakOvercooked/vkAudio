@@ -43,7 +43,7 @@ export class AudioReceiver {
 
   async getStreamComponent(component: 'playlist'): Promise<string>;
   async getStreamComponent(component: 'decrypt_key'): Promise<ArrayBuffer>;
-  async getStreamComponent(component: 'segment', mediaSequecne: number): Promise<ArrayBuffer>;
+  async getStreamComponent(component: 'segment', mediaSequenсe: number): Promise<ArrayBuffer>;
   async getStreamComponent(
     component: StreamComponent,
     mediaSequence?: number
