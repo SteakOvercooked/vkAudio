@@ -8,11 +8,9 @@ const enum LoadingBars {
   Inner = 'vk_audio__bar_inner',
 }
 
-const ANIMATION_DURATION = 200;
+const ANIMATION_DURATION = 300;
 
 class LoadingBar {
-  private audio: HTMLElement;
-  private content: HTMLElement;
   private barOuter: HTMLElement;
   private barInner: HTMLElement;
 
@@ -20,38 +18,26 @@ class LoadingBar {
 
   constructor(audio: HTMLElement) {
     this.error = false;
-    this.audio = audio;
-    this.audio.classList.add(LoadState.Loading);
-    this.audio.style.height = `${this.audio.clientHeight + 2}px`;
 
-    this.content = this.audio.children[0] as HTMLElement;
-    this.content.style.height = `${this.content.clientHeight}px`;
-
-    this.mount();
-  }
-
-  private mount = () => {
     const barOuter = document.createElement('div');
-    barOuter.classList.add(LoadingBars.Outer, 'hidden');
+    barOuter.classList.add(LoadingBars.Outer, 'in');
 
     const barInner = document.createElement('div');
     barInner.classList.add(LoadingBars.Inner);
 
     barOuter.insertBefore(barInner, null);
-    this.audio.insertBefore(barOuter, null);
-    barOuter.classList.remove('hidden');
+    audio.insertBefore(barOuter, null);
+    barOuter.offsetTop;
+    barOuter.classList.remove('in');
 
     this.barOuter = barOuter;
     this.barInner = barInner;
-  };
+  }
 
   private unmount = () => {
-    this.barOuter.classList.add('hidden');
-    this.audio.style.height = `${this.audio.clientHeight - 2}px`;
-    this.content.style.removeProperty('height');
+    this.barOuter.classList.add('out');
     setTimeout(() => {
       this.barOuter.remove();
-      this.audio.classList.remove(LoadState.Loading);
     }, ANIMATION_DURATION);
   };
 
@@ -59,16 +45,14 @@ class LoadingBar {
     if (this.error) return;
 
     this.barInner.style.width = `${(this.barOuter.clientWidth * percentage) / 100}px`;
-    if (percentage === 100)
-      setTimeout(() => {
-        this.unmount();
-      }, ANIMATION_DURATION);
+    if (percentage === 100) setTimeout(this.unmount, ANIMATION_DURATION);
   };
 
   throw = () => {
     this.error = true;
     this.barOuter.classList.add(LoadState.Error);
-    setTimeout(this.unmount, ANIMATION_DURATION * 10);
+    this.barInner.style.width = `${this.barOuter.clientWidth}px`;
+    setTimeout(this.unmount, ANIMATION_DURATION * 7);
   };
 }
 
