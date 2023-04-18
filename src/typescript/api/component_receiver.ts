@@ -43,9 +43,12 @@ export class ComponentReceiver {
     this.streamUrl = getStreamUrl(transformData);
   }
 
-  async getStreamComponent(component: 'playlist'): Promise<string>;
-  async getStreamComponent(component: 'decrypt_key'): Promise<ArrayBuffer>;
-  async getStreamComponent(component: 'segment', mediaSequenсe: number): Promise<ArrayBuffer>;
+  async getStreamComponent(component: StreamComponent.Playlist): Promise<string>;
+  async getStreamComponent(component: StreamComponent.Key): Promise<ArrayBuffer>;
+  async getStreamComponent(
+    component: StreamComponent.Segment,
+    mediaSequenсe: number
+  ): Promise<ArrayBuffer>;
   async getStreamComponent(
     component: StreamComponent,
     mediaSequence?: number
@@ -54,7 +57,7 @@ export class ComponentReceiver {
 
     const componentMap = new Map([
       ['playlist', 'index.m3u8'],
-      ['decrypt_key', 'key.pub'],
+      ['key', 'key.pub'],
       ['segment', `seg-${mediaSequence}-a1.ts`],
     ]);
 

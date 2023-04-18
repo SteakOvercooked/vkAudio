@@ -53,7 +53,11 @@ export interface ReloadAudiosResponse {
   templates: unknown;
 }
 
-export type StreamComponent = 'playlist' | 'decrypt_key' | 'segment';
+export const enum StreamComponent {
+  Playlist = 'playlist',
+  Key = 'key',
+  Segment = 'segment',
+}
 
 export interface TransformData {
   vk_id: number;

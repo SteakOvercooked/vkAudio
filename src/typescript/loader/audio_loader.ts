@@ -1,6 +1,6 @@
 import { SegmentsInfo } from './loader_types';
 import { ComponentReceiver } from '../api/component_receiver';
-import { AudioData } from '../api/api_types';
+import { AudioData, StreamComponent } from '../api/api_types';
 import { getSegmentsInfo } from './M3U8_parser';
 import { convert } from '../stream_converter/convert';
 import { getIV, initDownload } from './loader_utils';
@@ -26,7 +26,7 @@ export class AudioLoader {
   }
 
   private getKey = async (): Promise<CryptoKey> => {
-    const key_bytes = await this.receiver.getStreamComponent('decrypt_key');
+    const key_bytes = await this.receiver.getStreamComponent(StreamComponent.Key);
     const key = crypto.subtle.importKey('raw', key_bytes, CRYPT_ALGO, false, ['decrypt']);
 
     return key;
@@ -36,7 +36,7 @@ export class AudioLoader {
     let progress = 30; // transform data, playlist and key must be acquired
     const step = Math.trunc(50 / segmentsInfo.length);
     const requests = segmentsInfo.map(async ({ isEncrypted, mediaSequence }) => {
-      let segment = await this.receiver.getStreamComponent('segment', mediaSequence);
+      let segment = await this.receiver.getStreamComponent(StreamComponent.Segment, mediaSequence);
 
       if (isEncrypted) {
         segment = await crypto.subtle.decrypt(
@@ -75,7 +75,7 @@ export class AudioLoader {
 
     let playlist: string;
     try {
-      playlist = await this.receiver.getStreamComponent('playlist');
+      playlist = await this.receiver.getStreamComponent(StreamComponent.Playlist);
       this.onLoadProgressed(this.audio, 20);
     } catch (err) {
       this.onLoadFinished(this.audio, LoadResult.Error, Where.Playlist);
