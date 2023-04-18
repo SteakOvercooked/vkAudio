@@ -1,4 +1,4 @@
-import { SegmentsInfo } from './types';
+import { SegmentsInfo } from './loader_types';
 
 const enum Tag {
   CryptKey = '#EXT-X-KEY',

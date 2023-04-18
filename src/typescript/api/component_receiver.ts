@@ -1,4 +1,4 @@
-import { ReloadAudiosResponse, TransformData, StreamComponent } from '../types';
+import { ReloadAudiosResponse, TransformData, StreamComponent } from './api_types';
 import getM3U8Url from '../../vk_source/getM3U8Url';
 import { RequestGroup } from './request_group';
 
@@ -12,19 +12,21 @@ function getStreamUrl(transformData: TransformData) {
   return m3u8Url.substring(0, idx + 1);
 }
 
-export class AudioReceiver {
+export class ComponentReceiver {
   private requestGroup: RequestGroup;
+  private audioID: string;
   private streamUrl: string | null;
 
-  constructor() {
+  constructor(audioID: string) {
     this.streamUrl = null;
+    this.audioID = audioID;
     this.requestGroup = new RequestGroup();
   }
 
-  async fetchStreamUrl(audioID: string) {
+  async fetchStreamUrl() {
     const requestBody = new FormData();
     requestBody.set('al', '1');
-    requestBody.set('audio_ids', audioID);
+    requestBody.set('audio_ids', this.audioID);
 
     const response = await this.requestGroup.timedFetch(GET_AUDIO_DATA, {
       method: 'POST',

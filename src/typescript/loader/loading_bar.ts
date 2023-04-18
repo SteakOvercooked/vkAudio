@@ -14,10 +14,10 @@ class LoadingBar {
   private barOuter: HTMLElement;
   private barInner: HTMLElement;
 
-  private error: boolean;
+  private onUnmounted: () => void;
 
-  constructor(audio: HTMLElement) {
-    this.error = false;
+  constructor(audio: HTMLElement, onUnmounted: () => void) {
+    this.onUnmounted = onUnmounted;
 
     const barOuter = document.createElement('div');
     barOuter.classList.add(LoadingBars.Outer, 'in');
@@ -38,18 +38,16 @@ class LoadingBar {
     this.barOuter.classList.add('out');
     setTimeout(() => {
       this.barOuter.remove();
+      this.onUnmounted();
     }, ANIMATION_DURATION);
   };
 
-  setProgress = (percentage: number) => {
-    if (this.error) return;
+  setProgress = (percentage: number) =>
+    (this.barInner.style.width = `${(this.barOuter.clientWidth * percentage) / 100}px`);
 
-    this.barInner.style.width = `${(this.barOuter.clientWidth * percentage) / 100}px`;
-    if (percentage === 100) setTimeout(this.unmount, ANIMATION_DURATION);
-  };
+  finish = () => setTimeout(this.unmount, ANIMATION_DURATION);
 
   throw = () => {
-    this.error = true;
     this.barOuter.classList.add(LoadState.Error);
     this.barInner.style.width = `${this.barOuter.clientWidth}px`;
     setTimeout(this.unmount, ANIMATION_DURATION * 7);

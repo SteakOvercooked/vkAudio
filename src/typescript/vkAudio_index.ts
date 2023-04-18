@@ -1,8 +1,5 @@
-import AudioInteractionWatcher from './interaction/audio_interaction';
+import InteractionManager from './interaction/interaction_manager';
 
-const Watcher = new AudioInteractionWatcher();
-const waitForAudioOver = new MutationObserver(Watcher.onAudioOver);
-
-Watcher.audioOverWatcher = waitForAudioOver;
-
-Watcher.run();
+const interactionManager = new InteractionManager();
+interactionManager.audioOverWatcher = new MutationObserver(interactionManager.onAudioOver);
+interactionManager.run();

@@ -1,33 +1,35 @@
-import { onInteractionOver, UI_Elements } from '../types';
+import {
+  UI_Elements,
+  onInteractionOver,
+  onButtonCreated,
+  ObserverConfig,
+} from './interaction_types';
 import InformativeMO from './informative_mutation_observer';
-import { hasAppeared, createDownloadButton } from './interaction_utils';
+import { hasAppeared, createButtonElement, insertButton } from './interaction_utils';
 
-const ObserverConfig = {
-  style: {
-    attributeFilter: ['style'],
-  },
-  tree: {
-    subtree: true,
-    childList: true,
-  },
-};
-
-class Interaction {
+export default class Interaction {
   private actionList: HTMLElement | null;
   private audio: HTMLElement;
   private moreButton: HTMLElement;
   private isOnAudio: boolean;
 
   private onOver: onInteractionOver;
+  private onBtnCreated: onButtonCreated;
 
   appearanceObserver: MutationObserver;
   disappearanceObserver: InformativeMO;
   updateObserver: MutationObserver;
 
-  constructor(audio: HTMLElement, moreButton: HTMLElement, onOver: onInteractionOver) {
+  constructor(
+    audio: HTMLElement,
+    moreButton: HTMLElement,
+    onOver: onInteractionOver,
+    onBtnCreated: onButtonCreated
+  ) {
     this.actionList = null;
     this.isOnAudio = true;
     this.onOver = onOver;
+    this.onBtnCreated = onBtnCreated;
 
     this.audio = audio;
     this.audio.addEventListener('mouseenter', this.audioMouseEnter);
@@ -104,7 +106,9 @@ class Interaction {
 
     this.actionList = actionLists[actionLists.length - 1];
 
-    createDownloadButton(this.audio, this.actionList);
+    const button = createButtonElement();
+    this.onBtnCreated(button, this.audio);
+    insertButton(button, this.actionList);
 
     this.actionList.addEventListener('mouseleave', this.actionListMouseLeave);
     this.actionList.addEventListener('mouseenter', this.actionListMouseEnter);
@@ -129,44 +133,3 @@ class Interaction {
     this.moreButton.addEventListener('mouseleave', this.moreButtonMouseLeave);
   };
 }
-
-class AudioInteractionWatcher {
-  private interactedAudios: Map<Element, Interaction>;
-
-  audioOverWatcher: MutationObserver;
-
-  constructor() {
-    this.interactedAudios = new Map();
-  }
-
-  private onInteractionOver = (audio: HTMLElement) => this.interactedAudios.delete(audio);
-
-  private initInteraction = (audio: HTMLElement, moreButton: HTMLElement) => {
-    const interaction = new Interaction(audio, moreButton, this.onInteractionOver);
-
-    interaction.appearanceObserver = new MutationObserver(interaction.onActionsAppeared);
-    interaction.disappearanceObserver = new InformativeMO(interaction.onActionsDisappeared);
-    interaction.updateObserver = new MutationObserver(interaction.onMoreButtonUpdated);
-
-    this.interactedAudios.set(audio, interaction);
-  };
-
-  onAudioOver = () => {
-    const moreButtons = hasAppeared(UI_Elements.MoreButton);
-    if (moreButtons === null) return;
-
-    for (let i = 0; i < moreButtons.length; i++) {
-      const audio = moreButtons[i].closest('.audio_row') as HTMLElement;
-
-      if (!this.interactedAudios.has(audio)) {
-        this.initInteraction(audio, moreButtons[i]);
-      }
-    }
-  };
-
-  run = () => {
-    this.audioOverWatcher.observe(document.body, ObserverConfig.tree);
-  };
-}
-
-export default AudioInteractionWatcher;

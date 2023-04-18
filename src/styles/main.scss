@@ -11,8 +11,12 @@ $loader-progress-error: #ba4444;
     height: 2px;
     position: absolute;
     width: calc(100% - 16px);
-    left: 4px;
+    left: 12px;
     background-color: $loader-background;
+}
+
+.audio_w_covers .vk_audio__bar_outer {
+    left: 4px;
 }
 
 .vk_audio__bar_outer.in {
