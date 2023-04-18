@@ -1,10 +1,9 @@
 const path = require('path');
 
 module.exports = {
-  mode: 'development',
+  mode: 'production',
   devtool: false,
   entry: {
-    serviceWorker_index: './src/typescript/serviceWorker_index.ts',
     vkAudio_index: './src/typescript/vkAudio_index.ts',
   },
   output: {
@@ -16,6 +15,12 @@ module.exports = {
       {
         test: /\.ts$/,
         use: [
+          {
+            loader: require('webpack-obfuscator').loader,
+            options: {
+              config: path.resolve(__dirname, 'obfuscator.config.json'),
+            },
+          },
           {
             loader: 'babel-loader',
           },

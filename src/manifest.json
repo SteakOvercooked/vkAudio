@@ -3,9 +3,6 @@
   "description": "Скачивай музыку Вконтакте в один клик!",
   "version": "1.0",
   "manifest_version": 3,
-  "background": {
-    "service_worker": "serviceWorker_index.js"
-  },
   "content_scripts": [
     {
       "matches": ["http://vk.com/*", "https://vk.com/*"],

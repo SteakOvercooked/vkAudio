@@ -1,0 +1,9 @@
+{
+  "optionsPreset": "low-obfuscation",
+  "disableConsoleOutput": false,
+  "identifierNamesGenerator": "mangled",
+  "renameGlobals": true,
+  "renameProperties": true,
+  "stringArray": false,
+  "transformObjectKeys": true
+}
